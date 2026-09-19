@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色/浅色两套主题。不用 AndroidX 的 DayNight，因为那要引 AppCompat；
+         这里是自己在 onCreate 里 setTheme() 切换的，切完 recreate() 一下即可。
+
+         ★ 必须是 NoActionBar（v1.3 改的）：
+           目标平台是 targetSdk 35，而 Android 15 起强制"边到边"（edge-to-edge），
+           系统会把内容画到状态栏和 ActionBar 底下 —— 用户实测就是
+           顶部那一条（← + 地址栏）被 ActionBar 整个盖住，看着像"没有这一行"。
+           把框架自带的 ActionBar 去掉，顶栏就是布局里的第一个元素，谁也盖不住它；
+           系统栏的占位改由 MainActivity 里按 window insets 自己留（API 35+ 才需要）。 -->
+    <style name="AppThemeLight" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFFFFFFF</item>
+        <item name="android:colorAccent">#1B5FD9</item>
+        <item name="android:statusBarColor">#FFFFFFFF</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="AppThemeDark" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF14161A</item>
+        <item name="android:colorAccent">#5B9BFF</item>
+        <item name="android:statusBarColor">#FF14161A</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.apksmf.extractor"
+    android:versionCode="6"
+    android:versionName="1.0">
+
+    <!-- 雷电模拟器是 Android 9(API 28)，所以 minSdk 必须 <= 28 才能在模拟器里实测；
+         24 起 java.nio.channels 都齐了，Android 7~17 一路通吃。 -->
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35" />
+
+    <!-- 自己实现文件浏览器（像 MT 管理器那样直接浏览手机目录），所以要存储权限。
+         分段申请：Android 10 及以下用 READ/WRITE_EXTERNAL_STORAGE，
+         Android 11+ 必须用 MANAGE_EXTERNAL_STORAGE（"所有文件访问"）。 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <application
+        android:label="APVK"
+        android:icon="@mipmap/ic_launcher"
+        android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
+        android:theme="@style/AppThemeLight">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="APVK"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

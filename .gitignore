@@ -1,0 +1,26 @@
+# 构建中间产物（随时可以重新生成）
+build/
+gen/
+classes/
+dex/
+bin/
+obj/
+*.class
+*.dex
+*.apk.idsig
+
+# 大文件素材：原始安装包、解包出来的资源都不进仓库
+*.rsb
+*.rsb.smf
+*.smf
+植物大战僵尸*.apk
+PvZ*.apk
+mini.apk
+big.apk
+
+# 系统垃圾
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
+~$*
