@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.apksmf.extractor"
-    android:versionCode="6"
+    android:versionCode="7"
     android:versionName="1.0">
 
     <!-- 雷电模拟器是 Android 9(API 28)，所以 minSdk 必须 <= 28 才能在模拟器里实测；

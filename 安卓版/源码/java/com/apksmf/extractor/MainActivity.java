@@ -159,7 +159,7 @@ public class MainActivity extends Activity {
         rbThemeSystem.setChecked(themeMode == THEME_SYSTEM);
         rbThemeLight.setChecked(themeMode == THEME_LIGHT);
         rbThemeDark.setChecked(themeMode == THEME_DARK);
-        txtVersion.setText("版本 " + versionText() + "\n自带的文件浏览器可以像 MT 管理器那样直接翻目录");
+        txtVersion.setText("版本 " + versionText());
 
         showPage(pageImport, false);
     }
