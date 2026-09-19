@@ -45,8 +45,15 @@ $env:JAVA_HOME='...\jdk-17'
 
 产物在 `build\APVK.apk`。签名用的 `apksmf.jks`（口令都是 `android`，仅供本工具自己用）。
 
-**Windows**：零第三方依赖，用系统自带的 csc 编译（源码里 `src\*.cs` + `src\Lzma\*.cs`），
-编译命令见 `源码\tools\` 里的脚本。
+**Windows**：零第三方依赖，用系统自带的 csc 编译（不需要装任何东西）：
+
+```bat
+csc /target:winexe /out:APK提取工具.exe /win32icon:assets\app.ico src\*.cs src\Lzma\*.cs
+```
+
+要 XP 也能跑就用 `%WINDIR%\Microsoft.NET\Framework\v2.0.50727\csc.exe` 编译，并放一个
+213 字节的 `APK提取工具.exe.config`，同时声明 `supportedRuntime v4.0 / v2.0.50727`
+（这样一份 exe 从 XP 到 Win11 都能起来）。
 
 ## 核心代码是自己写的，还是参考了别人的？（重要，据实说明）
 
