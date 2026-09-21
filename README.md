@@ -1,4 +1,4 @@
-# APVK —— 从 PvZ2 安装包里取出 .smf 的小工具
+﻿# APVK —— 从 PvZ2 安装包里取出 .smf 的小工具
 
 > **APVK = PvZ + APK**（名字来自作者给的那个图标）。
 > 做两件事：① 像文件管理器一样翻手机/电脑里的 APK；② 把包里的 `.smf` 取出来，
@@ -45,7 +45,8 @@ $env:JAVA_HOME='...\jdk-17'
 
 产物在 `build\APVK.apk`。签名用的 `apksmf.jks`（口令都是 `android`，仅供本工具自己用）。
 
-**Windows**：零第三方依赖，用系统自带的 csc 编译（不需要装任何东西）：
+**Windows**：零第三方依赖，用系统自带的 csc 编译（不需要装任何东西）；工程里带了 `build.ps1`，
+直接跑它就出两个 exe（CLR 2.0 的 XP~Win11 版 + CLR 4.0 的单文件免配置版）：
 
 ```bat
 csc /target:winexe /out:APK提取工具.exe /win32icon:assets\app.ico src\*.cs src\Lzma\*.cs
