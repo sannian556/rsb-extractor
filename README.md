@@ -18,11 +18,11 @@ APVK本地仓库\
 │   ├─ 源码\                     ← 完整工程：java / res / AndroidManifest.xml / build.ps1 / tests
 │   └─ 截图\
 └─ Windows版\
-    ├─ APK提取工具.exe            ← 成品（XP ~ Win11 单文件）
+    ├─ APK提取工具.exe            ← 成品（466,944 字节，XP ~ Win11）
     ├─ APK提取工具.exe.config     ← 跟 exe 放一起（让 XP 也能跑）
     ├─ APK提取工具(单文件免配置版).exe
     ├─ APK提取工具-使用说明.txt
-    └─ 源码\                     ← src（含 Lzma）/ tools / tests
+    └─ 源码\                     ← src（含 Theme.cs 深色模式与 Lzma）/ assets（图标）/ tools / tests / build.ps1
 ```
 
 ## 怎么用
@@ -45,16 +45,23 @@ $env:JAVA_HOME='...\jdk-17'
 
 产物在 `build\APVK.apk`。签名用的 `apksmf.jks`（口令都是 `android`，仅供本工具自己用）。
 
-**Windows**：零第三方依赖，用系统自带的 csc 编译（不需要装任何东西）；工程里带了 `build.ps1`，
+**Windows**：零第三方依赖，用系统自带的 csc 编译（不需要装任何东西）。工程里带了 `build.ps1`，
 直接跑它就出两个 exe（CLR 2.0 的 XP~Win11 版 + CLR 4.0 的单文件免配置版）：
 
+```powershell
+.\Windows版\源码\build.ps1          # 产物在 Windows版\源码\build\ 下
+```
+
+也可以手敲 csc —— **中文源码必须 `/codepage:65001`**，图标在 `assets\`：
+
 ```bat
-csc /target:winexe /out:APK提取工具.exe /win32icon:assets\app.ico src\*.cs src\Lzma\*.cs
+csc /target:winexe /codepage:65001 /out:APK提取工具.exe /win32icon:assets\app.ico src\*.cs src\Lzma\*.cs
 ```
 
 要 XP 也能跑就用 `%WINDIR%\Microsoft.NET\Framework\v2.0.50727\csc.exe` 编译，并放一个
-213 字节的 `APK提取工具.exe.config`，同时声明 `supportedRuntime v4.0 / v2.0.50727`
-（这样一份 exe 从 XP 到 Win11 都能起来）。
+219 字节的 `APK提取工具.exe.config`，同时声明 `supportedRuntime v4.0 / v2.0.50727`
+（这样一份 exe 从 XP 到 Win11 都能起来）。把 `源码\`（`src` / `assets` / `build.ps1`）整体拷走后
+跑 `build.ps1`，能重建出与仓库里一致的成品（466,944 字节）。
 
 ## 核心代码是自己写的，还是参考了别人的？（重要，据实说明）
 

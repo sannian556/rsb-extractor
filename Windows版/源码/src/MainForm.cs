@@ -52,6 +52,19 @@ namespace ApkSmfExtractor
         private Button _btnPickDir;
         private Button _btnDoExport;
         private Label _lblStatus;
+        private ToolStripDropDownButton _btnTheme;
+        private ToolStripMenuItem _miThemeAuto, _miThemeLight, _miThemeDark;
+        private Panel _pSettings;
+        private Button _btnSettings, _btnSettingsBack;
+        private RadioButton _rbThemeAuto, _rbThemeLight, _rbThemeDark;
+        private Label _lblSetTitle, _lblSetSec1, _lblSetSec2, _lblThemeHint, _lblAbout;
+        private bool _syncingTheme;
+
+        /// <summary>自动化验证用：启动就把「外观」菜单弹出来（看灰态）</summary>
+        public static bool AutoShowThemeMenu = false;
+
+        /// <summary>自动化验证用：启动就停在「设置」页</summary>
+        public static bool AutoShowSettings = false;
 
         public MainForm() : this(null, false, null, 0, null, null) { }
 
@@ -59,6 +72,7 @@ namespace ApkSmfExtractor
         {
             using (Graphics g = CreateGraphics()) _scale = g.DpiX / 96f;
             if (_scale < 1f) _scale = 1f;
+            Theme.UiScale = _scale;      // 自绘控件（比如设置页的单选按钮）也要按同样的比例放大
 
             Text = "APK 提取工具";
             AutoScaleMode = AutoScaleMode.None;
@@ -68,14 +82,25 @@ namespace ApkSmfExtractor
             // XP 上没有"微软雅黑"，字体族不存在时 new Font 可能抛异常，兜一下
             try { Font = new Font("Microsoft YaHei UI", 9f); }
             catch { Font = SystemFonts.DefaultFont; }
-            BackColor = Color.White;
+            // 主题：先读设置 + 探测系统（决定「跟随系统」能不能用），界面建好后再统一刷一遍
+            Theme.Load();
+            Theme.Refresh();
+            BackColor = Theme.Bg;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); }
             catch { }
 
             BuildImportPanel();
             BuildBrowsePanel();
             BuildExportPanel();
+            BuildSettingsPanel();
+            ApplyTheme();
+            if (AutoShowThemeMenu)
+                Shown += delegate { try { _btnTheme.ShowDropDown(); } catch { } };
             ShowImport();
+            // --settings 要在这里就切过去，不能挂在 Shown 上：
+            // Shown 只有跑了消息循环才触发，而 --dump-ui 这类自动化口子不跑消息循环，会看到一片"还没进设置页"的假象
+            if (AutoShowSettings)
+                ShowSettings();
 
             if (autoOpen != null)
             {
@@ -139,7 +164,7 @@ namespace ApkSmfExtractor
         {
             _pImport = new Panel();
             _pImport.Dock = DockStyle.Fill;
-            _pImport.BackColor = Color.White;
+            _pImport.BackColor = Theme.Bg;
             _pImport.AllowDrop = true;
 
             _btnImport = new Button();
@@ -181,6 +206,12 @@ namespace ApkSmfExtractor
                 drops[i].DragDrop += OnImportDragDrop;
             }
 
+            _btnSettings = new Button();
+            _btnSettings.Text = "设置";
+            _btnSettings.Size = new Size(S(88), S(30));
+            _btnSettings.Click += delegate { ShowSettings(); };
+            _pImport.Controls.Add(_btnSettings);
+
             _pImport.Resize += delegate { LayoutImportPanel(); };
             Controls.Add(_pImport);
         }
@@ -193,6 +224,12 @@ namespace ApkSmfExtractor
             _btnImport.Top = cy - _btnImport.Height - S(14);
             _txtApkPath.Left = cx - _txtApkPath.Width / 2;
             _txtApkPath.Top = _btnImport.Bottom + S(24);
+            // 设置按钮钉在主界面右下角（Windows 的习惯位置）
+            if (_btnSettings != null)
+            {
+                _btnSettings.Left = _pImport.ClientSize.Width - _btnSettings.Width - S(18);
+                _btnSettings.Top = _pImport.ClientSize.Height - _btnSettings.Height - S(16);
+            }
         }
 
         private static string[] GetDropFiles(DragEventArgs e)
@@ -211,17 +248,17 @@ namespace ApkSmfExtractor
             string[] files = GetDropFiles(e);
             bool ok = files != null && files.Length > 0;
             e.Effect = ok ? DragDropEffects.Copy : DragDropEffects.None;
-            if (ok) _pImport.BackColor = Color.FromArgb(236, 244, 255);   // 拖进来时给点视觉反馈
+            if (ok) _pImport.BackColor = Theme.DropHover;   // 拖进来时给点视觉反馈
         }
 
         private void OnImportDragLeave(object sender, EventArgs e)
         {
-            _pImport.BackColor = Color.White;
+            _pImport.BackColor = Theme.Bg;
         }
 
         private void OnImportDragDrop(object sender, DragEventArgs e)
         {
-            _pImport.BackColor = Color.White;
+            _pImport.BackColor = Theme.Bg;
             string[] files = GetDropFiles(e);
             if (files == null || files.Length == 0) return;
             TryOpenApk(files[0]);
@@ -238,29 +275,29 @@ namespace ApkSmfExtractor
         {
             _pBrowse = new Panel();
             _pBrowse.Dock = DockStyle.Fill;
-            _pBrowse.BackColor = Color.White;
+            _pBrowse.BackColor = Theme.Bg;
             _pBrowse.Visible = false;
 
             // ---- 底部状态条（先加，Dock 顺序才对）----
             Panel bottom = new Panel();
             bottom.Dock = DockStyle.Bottom;
             bottom.Height = S(50);
-            bottom.BackColor = Color.FromArgb(247, 248, 250);
+            bottom.BackColor = Theme.PanelAlt;
             bottom.Paint += delegate(object s, PaintEventArgs e)
             {
-                using (Pen p = new Pen(Color.FromArgb(224, 227, 232)))
+                using (Pen p = new Pen(Theme.Border))
                     e.Graphics.DrawLine(p, 0, 0, bottom.ClientSize.Width, 0);
             };
 
             _lblCount = new Label();
             _lblCount.AutoSize = true;
             _lblCount.Location = new Point(S(14), S(17));
-            _lblCount.ForeColor = Color.FromArgb(100, 106, 116);
+            _lblCount.ForeColor = Theme.SubText;
             bottom.Controls.Add(_lblCount);
 
             _lblSelInfo = new Label();
             _lblSelInfo.AutoSize = true;
-            _lblSelInfo.ForeColor = Color.FromArgb(40, 90, 175);
+            _lblSelInfo.ForeColor = Theme.Link;
             bottom.Controls.Add(_lblSelInfo);
 
             _btnGoExport = new Button();
@@ -270,13 +307,10 @@ namespace ApkSmfExtractor
             _btnGoExport.Enabled = false;                       // 平时灰着
             _btnGoExport.Click += delegate { OnGoExportClick(); };
             bottom.Controls.Add(_btnGoExport);
-            bottom.Resize += delegate
-            {
-                _btnGoExport.Left = bottom.ClientSize.Width - _btnGoExport.Width - S(14);
-                _btnGoExport.Top = (bottom.ClientSize.Height - _btnGoExport.Height) / 2;
-                _lblSelInfo.Left = _btnGoExport.Left - _lblSelInfo.Width - S(16);
-                _lblSelInfo.Top = (bottom.ClientSize.Height - _lblSelInfo.Height) / 2;
-            };
+            bottom.Resize += delegate { LayoutBottom(); };
+            // 选中信息是 AutoSize 的：文字一变长它只会往右长，Left 不重算就会盖到按钮上面去
+            // （用户截图里"导出smf文件"只剩半截，就是被它压的）
+            _lblSelInfo.TextChanged += delegate { LayoutBottom(); };
 
             // ---- 顶部导航栏 ----
             _navBar = new ToolStrip();
@@ -286,7 +320,7 @@ namespace ApkSmfExtractor
             _navBar.GripStyle = ToolStripGripStyle.Hidden;
             _navBar.Padding = new Padding(S(8), S(5), S(8), S(5));
             _navBar.RenderMode = ToolStripRenderMode.System;
-            _navBar.BackColor = Color.FromArgb(250, 251, 252);
+            _navBar.BackColor = Theme.Panel;
             _navBar.CanOverflow = false;        // 不加这句会冒出一个多余的"溢出箭头"按钮
 
             _btnBackToMain = NavButton("← 返回主界面", "回到最开始那个界面", delegate { BackToImport(); });
@@ -311,6 +345,26 @@ namespace ApkSmfExtractor
             _viewDetail.Checked = true;                 // 默认是详细信息视图
             _navBar.Items.Add(_viewDetail);
             _navBar.Items.Add(_viewLarge);
+
+            // 外观三态：跟随系统 / 浅色 / 深色。
+            // 系统没有深色模式那一档（Win10 1809 以下）时，「跟随系统」变灰 + Tooltip 说明原因。
+            _btnTheme = new ToolStripDropDownButton();
+            _btnTheme.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            _btnTheme.Alignment = ToolStripItemAlignment.Right;
+            _btnTheme.Margin = new Padding(S(1), S(2), S(1), S(2));
+            _btnTheme.Padding = new Padding(S(5), S(0), S(5), 0);
+            _btnTheme.AutoToolTip = false;
+            _miThemeAuto = new ToolStripMenuItem("跟随系统");
+            _miThemeLight = new ToolStripMenuItem("浅色");
+            _miThemeDark = new ToolStripMenuItem("深色");
+            _miThemeAuto.Click += delegate { SetThemeMode(Theme.Mode.Auto); };
+            _miThemeLight.Click += delegate { SetThemeMode(Theme.Mode.Light); };
+            _miThemeDark.Click += delegate { SetThemeMode(Theme.Mode.Dark); };
+            _btnTheme.DropDownItems.Add(_miThemeAuto);
+            _btnTheme.DropDownItems.Add(new ToolStripSeparator());
+            _btnTheme.DropDownItems.Add(_miThemeLight);
+            _btnTheme.DropDownItems.Add(_miThemeDark);
+            _navBar.Items.Add(_btnTheme);
 
             // ---- 中间分栏 ----
             SplitContainer split = new SplitContainer();
@@ -338,12 +392,17 @@ namespace ApkSmfExtractor
             _list.BorderStyle = BorderStyle.None;
             _list.SmallImageList = ShellIcons.SmallList;
             _list.LargeImageList = ShellIcons.LargeList;
+            _list.ShowItemToolTips = true;             // 大图标里名字太长会被省略，鼠标停上去能看到全名
             _list.Columns.Add("名称", S(340), HorizontalAlignment.Left);
             _list.Columns.Add("大小", S(110), HorizontalAlignment.Right);
             _list.Columns.Add("类型", S(150), HorizontalAlignment.Left);
             _list.ItemSelectionChanged += delegate { UpdateExportButton(); };
             _list.DoubleClick += delegate { OnListDoubleClick(); };
             _list.Resize += delegate { AdjustColumns(); };
+            // 深色下系统画的表头/行是白的，改成自绘；浅色模式仍走系统原生，保持原来的样子
+            _list.DrawColumnHeader += OnDrawColumnHeader;
+            _list.DrawItem += OnDrawListItem;
+            _list.DrawSubItem += OnDrawListSubItem;
             split.Panel2.Controls.Add(_list);
 
             _pBrowse.Controls.Add(split);
@@ -375,7 +434,7 @@ namespace ApkSmfExtractor
         {
             _pExport = new Panel();
             _pExport.Dock = DockStyle.Fill;
-            _pExport.BackColor = Color.White;
+            _pExport.BackColor = Theme.Bg;
             _pExport.Visible = false;
 
             int y = S(56);
@@ -410,7 +469,7 @@ namespace ApkSmfExtractor
             _lblStatus = new Label();
             _lblStatus.AutoSize = true;
             _lblStatus.Location = new Point(S(36), y + S(44));
-            _lblStatus.ForeColor = Color.FromArgb(90, 96, 106);
+            _lblStatus.ForeColor = Theme.SubText;
             _pExport.Controls.Add(_lblStatus);
 
             Controls.Add(_pExport);
@@ -422,6 +481,7 @@ namespace ApkSmfExtractor
             _pImport.Visible = true;
             _pBrowse.Visible = false;
             _pExport.Visible = false;
+            if (_pSettings != null) _pSettings.Visible = false;
         }
 
         private void ShowBrowse()
@@ -429,6 +489,11 @@ namespace ApkSmfExtractor
             _pImport.Visible = false;
             _pBrowse.Visible = true;
             _pExport.Visible = false;
+            if (_pSettings != null) _pSettings.Visible = false;
+            // 隐藏的控件没有句柄，uxtheme 那两下压不进去 —— 等真显示了再补一次（深色下滚动条别是白的）
+            Theme.ApplyScrollTheme(_tree);
+            Theme.ApplyScrollTheme(_list);
+            LayoutBottom();         // 底部状态条也在这里补一次：光等 Resize 事件，隐藏期间排好的版可能压根不触发
         }
 
         private void ShowExport()
@@ -563,7 +628,7 @@ namespace ApkSmfExtractor
                 {
                     it.SubItems.Add(FormatSize(c.Size));
                     it.SubItems.Add(DescribeType(c.Name));
-                    if (!c.Entry.IsSmf) it.ForeColor = Color.FromArgb(170, 175, 182);   // 非 .smf 淡显
+                    if (!c.Entry.IsSmf) it.ForeColor = Theme.Dim;   // 非 .smf 淡显
                 }
                 it.Tag = c;
                 _list.Items.Add(it);
@@ -655,7 +720,7 @@ namespace ApkSmfExtractor
                 if (i > 0)
                 {
                     ToolStripLabel sep = new ToolStripLabel("›");
-                    sep.ForeColor = Color.FromArgb(150, 156, 166);
+                    sep.ForeColor = Theme.Dim;
                     sep.Margin = new Padding(S(2), S(7), S(2), 0);
                     _navBar.Items.Insert(at++, sep);
                     _crumbCount++;
@@ -664,7 +729,7 @@ namespace ApkSmfExtractor
                 string tip = target.FullPath.Length == 0 ? "APK 根目录" : target.FullPath;
                 ToolStripButton b = NavButton(target.Name, tip, delegate { NavigateTo(target); });
                 bool last = (i == chain.Count - 1);
-                b.ForeColor = last ? Color.FromArgb(25, 30, 38) : Color.FromArgb(50, 100, 185);
+                b.ForeColor = last ? Theme.Text : Theme.Link;
                 if (last) b.Font = new Font(Font, FontStyle.Bold);
                 _navBar.Items.Insert(at++, b);
                 _crumbCount++;
@@ -704,6 +769,25 @@ namespace ApkSmfExtractor
         }
 
         /// <summary>需求 3：只有选中【文件】时「导出smf文件」才亮；选中文件夹 / 只展开目录都不亮。</summary>
+        /// <summary>底部状态栏重排：按钮始终靠右，选中信息贴在它左边（文字一变就要重算）</summary>
+        private void LayoutBottom()
+        {
+            if (_btnGoExport == null || _btnGoExport.Parent == null) return;
+            Control p = _btnGoExport.Parent;
+            _btnGoExport.Left = p.ClientSize.Width - _btnGoExport.Width - S(14);
+            _btnGoExport.Top = (p.ClientSize.Height - _btnGoExport.Height) / 2;
+            if (_lblSelInfo != null)
+            {
+                // 宽度自己量：Label 是 AutoSize 的，TextChanged 触发时它的 Width 还是旧值，
+                // 拿旧宽度算 Left 会让文字往右长、又压到按钮上（用户截图里那个"n文件"）
+                int tw = string.IsNullOrEmpty(_lblSelInfo.Text)
+                    ? 0 : TextRenderer.MeasureText(_lblSelInfo.Text, _lblSelInfo.Font).Width;
+                _lblSelInfo.Left = _btnGoExport.Left - tw - S(16);
+                if (_lblSelInfo.Left < S(8)) _lblSelInfo.Left = S(8);   // 兜底：宁可挤也别跑到外面
+                _lblSelInfo.Top = (p.ClientSize.Height - _lblSelInfo.Height) / 2;
+            }
+        }
+
         private void UpdateExportButton()
         {
             _picked.Clear();
@@ -824,6 +908,440 @@ namespace ApkSmfExtractor
             }));
             t.IsBackground = true;
             t.Start();
+        }
+
+
+
+        // ============================================================ 界面 4：设置
+        /// <summary>
+        /// 照安卓版 APVK 的思路：主界面右下角一个「设置」按钮，点进去是设置页。
+        /// 样式照 Windows 来 —— 普通按钮 + 单选按钮组，不用手机那种大圆角卡片。
+        /// 目前两项：外观（跟随系统 / 浅色 / 深色）+ 关于（版本、设置文件位置）。
+        /// </summary>
+        private void BuildSettingsPanel()
+        {
+            _pSettings = new Panel();
+            _pSettings.Dock = DockStyle.Fill;
+            _pSettings.BackColor = Theme.Bg;
+            _pSettings.Visible = false;
+
+            _lblSetTitle = new Label();
+            _lblSetTitle.Text = "设置";
+            _lblSetTitle.AutoSize = true;
+            _lblSetTitle.Font = new Font(Font.FontFamily, 15f, FontStyle.Bold);
+            _lblSetTitle.Location = new Point(S(28), S(24));
+            _pSettings.Controls.Add(_lblSetTitle);
+
+            _lblSetSec1 = SectionLabel("外观", S(78));
+            _pSettings.Controls.Add(_lblSetSec1);
+
+            _rbThemeAuto = NewThemeRadio("跟随系统主题", S(108));
+            _rbThemeLight = NewThemeRadio("浅色", S(140));
+            _rbThemeDark = NewThemeRadio("深色", S(172));
+            _pSettings.Controls.Add(_rbThemeAuto);
+            _pSettings.Controls.Add(_rbThemeLight);
+            _pSettings.Controls.Add(_rbThemeDark);
+
+            _lblThemeHint = new Label();
+            _lblThemeHint.AutoSize = false;
+            _lblThemeHint.Location = new Point(S(56), S(206));
+            _lblThemeHint.Size = new Size(S(620), S(44));
+            _pSettings.Controls.Add(_lblThemeHint);
+
+            _lblSetSec2 = SectionLabel("关于", S(268));
+            _pSettings.Controls.Add(_lblSetSec2);
+
+            _lblAbout = new Label();
+            _lblAbout.AutoSize = false;
+            _lblAbout.Location = new Point(S(56), S(298));
+            _lblAbout.Size = new Size(S(620), S(76));
+            _pSettings.Controls.Add(_lblAbout);
+
+            _btnSettingsBack = new Button();
+            _btnSettingsBack.Text = "返回主界面";
+            _btnSettingsBack.Size = new Size(S(120), S(32));
+            _btnSettingsBack.Click += delegate { BackToImport(); };
+            _pSettings.Controls.Add(_btnSettingsBack);
+
+            _pSettings.Resize += delegate { LayoutSettingsPanel(); };
+            Controls.Add(_pSettings);
+        }
+
+        private Label SectionLabel(string text, int y)
+        {
+            Label l = new Label();
+            l.Text = text;
+            l.AutoSize = true;
+            l.Font = new Font(Font.FontFamily, 10f, FontStyle.Bold);
+            l.Location = new Point(S(28), y);
+            return l;
+        }
+
+        private RadioButton NewThemeRadio(string text, int y)
+        {
+            RadioButton rb = new ThemeRadio();      // 自绘的：深色下小圆点才看得见
+            rb.Text = text;
+            // 不给 AutoSize：自绘控件的自动宽度是按系统那套圆点算的，会把「跟随系统主题」裁成「跟随系统…」
+            rb.AutoSize = false;
+            rb.Size = new Size(S(240), S(24));
+            rb.Location = new Point(S(36), y);
+            rb.CheckedChanged += delegate { OnThemeRadioChanged(); };
+            return rb;
+        }
+
+        /// <summary>单选按钮变了就切主题（同步时会重入，用 _syncingTheme 挡住）</summary>
+        private void OnThemeRadioChanged()
+        {
+            if (_syncingTheme) return;
+            if (_rbThemeDark != null && _rbThemeDark.Checked) SetThemeMode(Theme.Mode.Dark);
+            else if (_rbThemeLight != null && _rbThemeLight.Checked) SetThemeMode(Theme.Mode.Light);
+            else if (_rbThemeAuto != null && _rbThemeAuto.Checked) SetThemeMode(Theme.Mode.Auto);
+        }
+
+        private void LayoutSettingsPanel()
+        {
+            if (_btnSettingsBack != null)
+            {
+                _btnSettingsBack.Left = S(28);
+                _btnSettingsBack.Top = _pSettings.ClientSize.Height - _btnSettingsBack.Height - S(24);
+            }
+            if (_lblAbout != null)
+            {
+                string ver = "?";
+                try { ver = Application.ProductVersion; } catch { }
+                // 程序集版本是 1.0.0.0 这种四段式，界面上只留前两段（1.0），跟安卓版显示的一致
+                string[] seg = ver.Split('.');
+                if (seg.Length > 2) ver = seg[0] + "." + seg[1];
+                _lblAbout.Text = "APK 提取工具　版本 " + ver
+                    + "\r\n外观设置存在：" + Theme.SettingsPath
+                    + "\r\n（删掉那个文件就恢复默认：跟随系统）";
+            }
+        }
+
+        private void ShowSettings()
+        {
+            _pImport.Visible = false;
+            _pBrowse.Visible = false;
+            _pExport.Visible = false;
+            _pSettings.Visible = true;
+            UpdateThemeButton();
+            LayoutSettingsPanel();
+            _pSettings.Invalidate(true);
+        }
+
+        // ============================================================ 主题
+        /// <summary>把当前调色板刷到所有控件上（切主题、系统换主题时都走这里）</summary>
+        private void ApplyTheme()
+        {
+            BackColor = Theme.Bg;
+            if (_pImport != null) _pImport.BackColor = Theme.Bg;
+            if (_pBrowse != null) _pBrowse.BackColor = Theme.Bg;
+            if (_pExport != null) _pExport.BackColor = Theme.Bg;
+
+            // 深色下系统原生按钮是白的，改成自绘扁平；浅色下保持系统原生
+            Button[] btns = new Button[] { _btnImport, _btnGoExport, _btnPickDir, _btnDoExport };
+            for (int i = 0; i < btns.Length; i++) Theme.StyleButton(btns[i]);
+            Theme.StyleTextBox(_txtApkPath);
+            Theme.StyleTextBox(_txtOut);
+
+            if (_lblCount != null) { _lblCount.BackColor = Color.Transparent; _lblCount.ForeColor = Theme.SubText; }
+            if (_lblSelInfo != null) { _lblSelInfo.BackColor = Color.Transparent; _lblSelInfo.ForeColor = Theme.Link; }
+            if (_lblStatus != null) { _lblStatus.BackColor = Color.Transparent; _lblStatus.ForeColor = Theme.SubText; }
+            if (_lblOutCaption != null) { _lblOutCaption.BackColor = Color.Transparent; _lblOutCaption.ForeColor = Theme.Text; }
+
+            if (_navBar != null)
+            {
+                _navBar.BackColor = Theme.Panel;
+                if (Theme.IsLight) _navBar.RenderMode = ToolStripRenderMode.System;
+                else
+                {
+                    _navBar.RenderMode = ToolStripRenderMode.Professional;
+                    _navBar.Renderer = new DarkToolStripRenderer();
+                }
+            }
+
+            if (_tree != null)
+            {
+                _tree.BackColor = Theme.Bg;
+                _tree.ForeColor = Theme.Text;
+                _tree.LineColor = Theme.Border;
+                Theme.ApplyScrollTheme(_tree);
+            }
+            if (_list != null)
+            {
+                _list.BackColor = Theme.Bg;
+                _list.ForeColor = Theme.Text;
+                _list.OwnerDraw = !Theme.IsLight;      // 浅色交给系统画，深色才自绘
+                Theme.ApplyScrollTheme(_list);
+            }
+
+            // 分栏条 / 底部状态条（这两个是局部变量，按 Dock 找回来）
+            if (_pBrowse != null)
+            {
+                for (int i = 0; i < _pBrowse.Controls.Count; i++)
+                {
+                    Control c = _pBrowse.Controls[i];
+                    if (c is SplitContainer) c.BackColor = Theme.Border;
+                    else if (c.Dock == DockStyle.Bottom) c.BackColor = Theme.PanelAlt;
+                }
+            }
+
+            if (_pSettings != null)
+            {
+                _pSettings.BackColor = Theme.Bg;
+                Label[] sl = new Label[] { _lblSetTitle, _lblSetSec1, _lblSetSec2 };
+                for (int i = 0; i < sl.Length; i++)
+                {
+                    if (sl[i] == null) continue;
+                    sl[i].BackColor = Color.Transparent;
+                    sl[i].ForeColor = Theme.Text;
+                }
+                Label[] sl2 = new Label[] { _lblThemeHint, _lblAbout };
+                for (int i = 0; i < sl2.Length; i++)
+                {
+                    if (sl2[i] == null) continue;
+                    sl2[i].BackColor = Color.Transparent;
+                    sl2[i].ForeColor = Theme.SubText;
+                }
+                Theme.StyleChoice(_rbThemeAuto);
+                Theme.StyleChoice(_rbThemeLight);
+                Theme.StyleChoice(_rbThemeDark);
+                Theme.StyleButton(_btnSettingsBack);
+            }
+            Theme.StyleButton(_btnSettings);
+
+            UpdateThemeButton();
+            Theme.ApplyTitleBar(Handle, Theme.IsLight);
+            Invalidate(true);
+        }
+
+        /// <summary>「外观」菜单的文字 / 勾选 / 可用性</summary>
+        private void UpdateThemeButton()
+        {
+            if (_btnTheme == null) return;
+            _btnTheme.Text = "外观：" + Theme.Describe(Theme.Current);
+            _miThemeAuto.Checked = (Theme.Current == Theme.Mode.Auto);
+            _miThemeLight.Checked = (Theme.Current == Theme.Mode.Light);
+            _miThemeDark.Checked = (Theme.Current == Theme.Mode.Dark);
+
+            // ★ 方案 B：系统没有深色模式时，「跟随系统」这一档变灰不可点，并把原因写在提示里
+            _miThemeAuto.Enabled = Theme.SystemSupportsTheme;
+            if (Theme.SystemSupportsTheme)
+            {
+                _miThemeAuto.ToolTipText = "跟着 Windows 的「应用模式」走（当前系统："
+                    + (Theme.ReadSystemPrefersLight() ? "浅色" : "深色") + "）——你在系统里改，这里会实时跟着变";
+            }
+            else
+            {
+                _miThemeAuto.ToolTipText = "当前系统没有「深色模式」这个设置（Windows 10 1809 以上才有），"
+                    + "所以这一档用不了，已按浅色显示；下面「浅色 / 深色」两档随时可用";
+            }
+            _btnTheme.ToolTipText = Theme.CurrentDescription();
+
+            // 设置页里的那组单选按钮跟菜单是一份状态，一起同步
+            _syncingTheme = true;
+            try
+            {
+                if (_rbThemeAuto != null)
+                {
+                    _rbThemeAuto.Checked = (Theme.Current == Theme.Mode.Auto);
+                    _rbThemeAuto.Enabled = Theme.SystemSupportsTheme;
+                }
+                if (_rbThemeLight != null) _rbThemeLight.Checked = (Theme.Current == Theme.Mode.Light);
+                if (_rbThemeDark != null) _rbThemeDark.Checked = (Theme.Current == Theme.Mode.Dark);
+                if (_lblThemeHint != null)
+                {
+                    // 只在"系统不支持"时才显示这行 —— 那是单选按钮变灰的原因，必须写出来；
+                    // 支持的时候不啰嗦（用户要求删掉那句）。
+                    _lblThemeHint.Visible = !Theme.SystemSupportsTheme;
+                    if (!Theme.SystemSupportsTheme)
+                    {
+                        _lblThemeHint.Text = "本系统没有「深色模式」这个设置（Windows 10 1809 以上才有），"
+                            + "所以「跟随系统主题」用不了、已经变灰，外观按浅色显示；下面「浅色 / 深色」两档随时可选。";
+                    }
+                }
+            }
+            finally { _syncingTheme = false; }
+        }
+
+        private void SetThemeMode(Theme.Mode m)
+        {
+            if (m == Theme.Mode.Auto && !Theme.SystemSupportsTheme) return;   // 灰的那一档，点了也当没点
+            Theme.Current = m;
+            Theme.Save();
+            Theme.Refresh();
+            ApplyTheme();
+            if (_list != null) _list.Invalidate();
+            if (_tree != null) _tree.Invalidate();
+        }
+
+        /// <summary>用户在 Windows 里换了「应用模式」—— WM_SETTINGCHANGE(ImmersiveColorSet) 时跟随模式实时生效</summary>
+        protected override void WndProc(ref Message m)
+        {
+            const int WM_SETTINGCHANGE = 0x001A;
+            if (m.Msg == WM_SETTINGCHANGE && Theme.Current == Theme.Mode.Auto)
+            {
+                bool before = Theme.IsLight;
+                Theme.Refresh();
+                if (Theme.IsLight != before) ApplyTheme();
+                else UpdateThemeButton();
+            }
+            base.WndProc(ref m);
+        }
+
+        // ---- ListView 自绘（只在深色下启用）----
+        private Color ListItemColor(ListViewItem it)
+        {
+            Color c = it.ForeColor;
+            if (c == Control.DefaultForeColor || c.IsEmpty) c = Theme.Text;
+            return c;
+        }
+
+        private void OnDrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            using (SolidBrush b = new SolidBrush(Theme.PanelAlt))
+                e.Graphics.FillRectangle(b, e.Bounds);
+            using (Pen p = new Pen(Theme.Border))
+            {
+                e.Graphics.DrawLine(p, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+                e.Graphics.DrawLine(p, e.Bounds.Right - 1, e.Bounds.Top + S(4), e.Bounds.Right - 1, e.Bounds.Bottom - S(4));
+            }
+            TextFormatFlags flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+            flags |= (e.Header.TextAlign == HorizontalAlignment.Right) ? TextFormatFlags.Right : TextFormatFlags.Left;
+            Rectangle r = e.Bounds;
+            r.Inflate(-S(6), 0);
+            TextRenderer.DrawText(e.Graphics, e.Header.Text, _list.Font, r, Theme.SubText, flags);
+        }
+
+        private void OnDrawListItem(object sender, DrawListViewItemEventArgs e)
+        {
+            if (_list.View == View.Details)
+            {
+                // 先把整行铺满（最右侧空白区不属于任何列，不铺会留一条白边）
+                Color back = e.Item.Selected ? Theme.SelBg
+                           : (e.ItemIndex % 2 == 1 ? Theme.RowAlt : Theme.Bg);
+                using (SolidBrush b = new SolidBrush(back))
+                    e.Graphics.FillRectangle(b, e.Bounds);
+                return;
+            }
+
+            // 大图标视图：图标居中、名字在下面
+            using (SolidBrush b = new SolidBrush(e.Item.Selected ? Theme.SelBg : Theme.Bg))
+                e.Graphics.FillRectangle(b, e.Bounds);
+
+            // 图标框和文字框都问系统要（ItemBoundsPortion）：
+            // 自己拿 e.Bounds 减图标高度算文字位置，算出来只剩几个像素，名字会被压成一条缝
+            Image img = LargeIconOf(e.Item);
+            if (img != null)
+            {
+                Rectangle ir = e.Item.GetBounds(ItemBoundsPortion.Icon);
+                int x = ir.Left + (ir.Width - img.Width) / 2;
+                int y = ir.Top + (ir.Height - img.Height) / 2;
+                e.Graphics.DrawImage(img, x, y, img.Width, img.Height);
+            }
+            Rectangle tr = e.Item.GetBounds(ItemBoundsPortion.Label);
+            // 上下沿用系统给的（正好一行），左右必须收进项矩形：
+            // 系统给的那个框宽度 = 文字自然宽度，长名字会画到项外面去、跟邻居糊成一片
+            tr = new Rectangle(e.Bounds.Left + S(2), tr.Top, e.Bounds.Width - S(4), tr.Height);
+            if (tr.Height < S(8) || tr.Width < S(8))
+                tr = new Rectangle(e.Bounds.Left + S(2), e.Bounds.Bottom - S(26), e.Bounds.Width - S(4), S(22));
+            TextRenderer.DrawText(e.Graphics, e.Item.Text, _list.Font, tr, ListItemColor(e.Item),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+
+        /// <summary>取列表项的大图标</summary>
+        private Image LargeIconOf(ListViewItem it)
+        {
+            try
+            {
+                ImageList il = _list.LargeImageList;
+                if (il == null) return null;
+                if (!string.IsNullOrEmpty(it.ImageKey) && il.Images.ContainsKey(it.ImageKey))
+                    return il.Images[it.ImageKey];
+                if (it.ImageIndex >= 0 && it.ImageIndex < il.Images.Count)
+                    return il.Images[it.ImageIndex];
+            }
+            catch { }
+            return null;
+        }
+
+        private void OnDrawListSubItem(object sender, DrawListViewSubItemEventArgs e)
+        {
+            if (_list.View != View.Details) return;
+            Color back = e.Item.Selected ? Theme.SelBg
+                       : (e.ItemIndex % 2 == 1 ? Theme.RowAlt : Theme.Bg);
+            using (SolidBrush b = new SolidBrush(back))
+                e.Graphics.FillRectangle(b, e.Bounds);
+
+            Color c = ListItemColor(e.Item);
+            if (e.Item.Selected && Theme.IsLight) c = Theme.SelText;
+            TextFormatFlags flags = TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+            bool right = (e.ColumnIndex > 0 && e.ColumnIndex < _list.Columns.Count
+                          && _list.Columns[e.ColumnIndex].TextAlign == HorizontalAlignment.Right);
+            flags |= right ? TextFormatFlags.Right : TextFormatFlags.Left;
+            Rectangle r = e.Bounds;
+            r.Inflate(-S(6), 0);
+
+            // 第 0 列的文字前面要画小图标。
+            // 浅色是系统自绘的，图标本来就有；改成自绘之后系统不再帮忙画，就会"详细信息里没有小图标"
+            if (e.ColumnIndex == 0)
+            {
+                Image img = SmallIconOf(e.Item);
+                if (img != null)
+                {
+                    int top = e.Bounds.Top + (e.Bounds.Height - img.Height) / 2;
+                    e.Graphics.DrawImage(img, e.Bounds.Left + S(2), top, img.Width, img.Height);
+                    int shift = img.Width + S(4);
+                    r.X += shift;
+                    r.Width -= shift;
+                }
+            }
+            TextRenderer.DrawText(e.Graphics, e.SubItem.Text, _list.Font, r, c, flags);
+        }
+
+        /// <summary>
+        /// 自动化用：把列表视图的关键矩形写出来（大图标模式下的图标框/文字框最容易出错，
+        /// 靠猜没用，直接看系统给的实际数字）。--dump-list 调用。
+        /// </summary>
+        public void DumpList(string path)
+        {
+            StringBuilder sb = new StringBuilder();
+            string small = _list.SmallImageList == null ? "-" : (_list.SmallImageList.ImageSize.Width + "x" + _list.SmallImageList.ImageSize.Height);
+            string large = _list.LargeImageList == null ? "-" : (_list.LargeImageList.ImageSize.Width + "x" + _list.LargeImageList.ImageSize.Height);
+            sb.AppendLine("view=" + _list.View + "  client=" + _list.ClientSize.Width + "x" + _list.ClientSize.Height
+                + "  smallImage=" + small + "  largeImage=" + large
+                + "  labelWrap=" + _list.LabelWrap);
+            for (int i = 0; i < _list.Items.Count && i < 14; i++)
+            {
+                ListViewItem it = _list.Items[i];
+                Rectangle b = it.Bounds;
+                Rectangle ic = it.GetBounds(ItemBoundsPortion.Icon);
+                Rectangle lb = it.GetBounds(ItemBoundsPortion.Label);
+                sb.AppendLine(string.Format(
+                    "{0,2} {1,-36} bounds={2},{3} {4}x{5} | icon={6},{7} {8}x{9} | label={10},{11} {12}x{13}",
+                    i, it.Text,
+                    b.Left, b.Top, b.Width, b.Height,
+                    ic.Left, ic.Top, ic.Width, ic.Height,
+                    lb.Left, lb.Top, lb.Width, lb.Height));
+            }
+            File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+        }
+
+        /// <summary>取列表项的小图标（ImageKey / ImageIndex 两种设法都兜住）</summary>
+        private Image SmallIconOf(ListViewItem it)
+        {
+            try
+            {
+                ImageList il = it.ImageList;
+                if (il == null) il = _list.SmallImageList;
+                if (il == null) return null;
+                if (!string.IsNullOrEmpty(it.ImageKey) && il.Images.ContainsKey(it.ImageKey))
+                    return il.Images[it.ImageKey];
+                if (it.ImageIndex >= 0 && it.ImageIndex < il.Images.Count)
+                    return il.Images[it.ImageIndex];
+            }
+            catch { }
+            return null;
         }
 
         // ============================================================ 小工具
