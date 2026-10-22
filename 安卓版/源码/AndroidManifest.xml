@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.apksmf.extractor"
-    android:versionCode="7"
-    android:versionName="1.0">
+    android:versionCode="8"
+    android:versionName="1.0.1">
 
     <!-- 雷电模拟器是 Android 9(API 28)，所以 minSdk 必须 <= 28 才能在模拟器里实测；
          24 起 java.nio.channels 都齐了，Android 7~17 一路通吃。 -->

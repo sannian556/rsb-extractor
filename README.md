@@ -1,4 +1,4 @@
-﻿# RSB 提取器 —— 从 PvZ2 安装包里取出 .smf 的小工具
+# RSB 提取器 —— 从 PvZ2 安装包里取出 .smf 的小工具
 
 > **RSB 提取器 = RSB（资源包）+ 提取器**（名字来自作者给的那个图标）。
 > 做两件事：① 像文件管理器一样翻手机/电脑里的 APK；② 把包里的 `.smf` 取出来，
@@ -13,12 +13,12 @@
 ```
 RSB提取器本地仓库\
 ├─ 安卓版\
-│   ├─ RSB提取器.apk                  ← 成品（149 KB，直接装手机）
+│   ├─ RSB提取器.apk                  ← 成品（153 KB / 156,527 字节，v1.0.1，直接装手机）
 │   ├─ RSB提取器-使用说明.txt
 │   ├─ 源码\                     ← 完整工程：java / res / AndroidManifest.xml / build.ps1 / tests
 │   └─ 截图\
 └─ Windows版\
-    ├─ RSB提取器.exe            ← 成品（466,944 字节，XP ~ Win11）
+    ├─ RSB提取器.exe            ← 成品（462,848 字节，XP ~ Win11）
     ├─ RSB提取器.exe.config     ← 跟 exe 放一起（让 XP 也能跑）
     ├─ RSB提取器(单文件免配置版).exe
     ├─ RSB提取器-使用说明.txt
@@ -61,11 +61,11 @@ csc /target:winexe /codepage:65001 /out:RSB提取器.exe /win32icon:assets\app.i
 要 XP 也能跑就用 `%WINDIR%\Microsoft.NET\Framework\v2.0.50727\csc.exe` 编译，并放一个
 219 字节的 `RSB提取器.exe.config`，同时声明 `supportedRuntime v4.0 / v2.0.50727`
 （这样一份 exe 从 XP 到 Win11 都能起来）。把 `源码\`（`src` / `assets` / `build.ps1`）整体拷走后
-跑 `build.ps1`，能重建出与仓库里一致的成品（466,944 字节）。
+跑 `build.ps1`，能重建出与仓库里一致的成品（462,848 字节）。
 
 ## 核心代码是自己写的，还是参考了别人的？（重要，据实说明）
 
-### 一、自己实测逆出来的：RSB 容器容器格式
+### 一、自己实测逆出来的：RSB 容器格式
 
 `.rsb.smf` 外面那层 `RSB 容器` 外壳**没有任何公开文档**，也没有可以照抄的实现。做法是拿
 《植物大战僵尸2》4.2.4 的**33 个** `.rsb.smf` 做差分试错，一条一条验证出来的：

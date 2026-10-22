@@ -7,17 +7,29 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Shader;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.Settings;
+import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -155,6 +167,7 @@ public class MainActivity extends Activity {
         applySystemBarInsets();     // Android 15+ 强制"边到边"，得自己给状态栏留位
         bindViews();
         wireEvents();
+        styleUi();
 
         rbThemeSystem.setChecked(themeMode == THEME_SYSTEM);
         rbThemeLight.setChecked(themeMode == THEME_LIGHT);
@@ -196,7 +209,7 @@ public class MainActivity extends Activity {
             android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
             return pi.versionName;
         } catch (Throwable t) {
-            return "1.0";
+            return "1.0.1";
         }
     }
 
@@ -205,6 +218,144 @@ public class MainActivity extends Activity {
         if (themeMode == THEME_DARK) return true;
         int mode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
         return mode == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    // ============================================================ 外观（v1.0.1 美化，纯系统 API）
+    private float dp(float v) { return v * getResources().getDisplayMetrics().density; }
+
+    /** 圆角纯色背景 */
+    private GradientDrawable roundRect(int color, float radiusDp) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(dp(radiusDp));
+        return d;
+    }
+
+    /** 圆角 + 按压水波纹（RippleDrawable 是 API 21 自带的，不用引 AndroidX） */
+    private Drawable pressable(int normal, int ripple, float radiusDp) {
+        Drawable content = roundRect(normal, radiusDp);
+        if (Build.VERSION.SDK_INT >= 21) {
+            return new RippleDrawable(ColorStateList.valueOf(ripple), content, null);
+        }
+        return content;
+    }
+
+    /** 列表行的统一外观：圆角卡片 + 内边距；新出现的行带一点淡入上浮 */
+    private void styleRow(View v, int color, int ripple, int position, boolean fresh) {
+        v.setBackground(pressable(color, ripple, 14f));
+        v.setPadding((int) dp(14), (int) dp(10), (int) dp(14), (int) dp(10));
+        if (fresh) {
+            v.setAlpha(0f);
+            v.setTranslationY(dp(8));
+            v.animate().alpha(1f).translationY(0f).setDuration(220)
+                    .setStartDelay(Math.min(position, 8) * 22L)
+                    .setInterpolator(new DecelerateInterpolator()).start();
+        } else {
+            v.animate().cancel();
+            v.setAlpha(1f);
+            v.setTranslationY(0f);
+        }
+    }
+
+    /** 按钮按下时轻微缩小，松开弹回 */
+    private void addPressScale(final View v) {
+        v.setOnTouchListener(new View.OnTouchListener() {
+            public boolean onTouch(View view, MotionEvent e) {
+                int a = e.getActionMasked();
+                if (a == MotionEvent.ACTION_DOWN) {
+                    view.animate().scaleX(0.97f).scaleY(0.97f).setDuration(90).start();
+                } else if (a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) {
+                    view.animate().scaleX(1f).scaleY(1f).setDuration(130).start();
+                }
+                return false;   // 不消费事件，点击照常
+            }
+        });
+    }
+
+    /** 统一给所有页面/按钮/输入框/列表上圆角卡片样式（深色浅色各一套） */
+    private void styleUi() {
+        final int pageBg    = dark ? 0xFF0E1014 : 0xFFF2F5FA;
+        final int card      = dark ? 0xFF1A1E26 : 0xFFFFFFFF;
+        final int cardHit   = dark ? 0xFF262E3B : 0xFFE6EDF9;
+        final int accent    = dark ? 0xFF5B9BFF : 0xFF3D7DF6;
+        final int rippleW   = 0x33FFFFFF;
+        final int text      = dark ? 0xFFE8EAEE : 0xFF1A1F28;
+        final int sub       = dark ? 0xFF98A0AC : 0xFF6B7280;
+
+        View[] pages = new View[] { pageImport, pageFsApk, pageBrowse, pageFsDir, pageExport, pageSettings };
+        for (View p : pages) p.setBackgroundColor(pageBg);
+
+        // 主按钮：强调色圆角 + 白字 + 按压缩放
+        Button[] primary = new Button[] { btnPickApk, btnDoExport, btnUseDir, btnPickDir };
+        for (Button b : primary) {
+            b.setBackground(pressable(accent, rippleW, 14f));
+            b.setTextColor(0xFFFFFFFF);
+            b.setTextSize(16f);
+            b.setAllCaps(false);
+            b.setMinHeight((int) dp(50));
+            addPressScale(b);
+        }
+
+        // 次按钮：卡片底 + 主题文字
+        Button[] secondary = new Button[] { btnSettings, btnFsApkBack, btnFsApkUp, btnFsApkCancel,
+                btnFsDirBack, btnFsDirUp, btnFsDirCancel, btnGoExport, btnBack, btnSettingsBack, btnGrant };
+        for (Button b : secondary) {
+            b.setBackground(pressable(card, cardHit, 12f));
+            b.setTextColor(text);
+            b.setAllCaps(false);
+            b.setMinHeight((int) dp(44));
+        }
+        // 「导出 .smf」是主操作：即使在次按钮数组里，也强调色
+        btnGoExport.setBackground(pressable(accent, rippleW, 12f));
+        btnGoExport.setTextColor(0xFFFFFFFF);
+
+        // 输入框：圆角卡片，去掉系统自带下划线
+        EditText[] edits = new EditText[] { edtApkPath, edtFsApkPath, edtFsDirPath };
+        for (EditText e : edits) {
+            e.setBackground(pressable(card, cardHit, 12f));
+            e.setTextColor(text);
+            e.setHintTextColor(sub);
+            e.setPadding((int) dp(14), (int) dp(11), (int) dp(14), (int) dp(11));
+        }
+
+        // 列表：透明分隔线给出 6dp 行间距，行本身是圆角卡片
+        ListView[] lists = new ListView[] { listFsApk, listFsDir, listFiles };
+        for (ListView l : lists) {
+            l.setBackgroundColor(pageBg);
+            l.setDivider(new ColorDrawable(0x00000000));
+            l.setDividerHeight((int) dp(6));
+            l.setPadding((int) dp(10), (int) dp(4), (int) dp(10), (int) dp(10));
+            l.setClipToPadding(false);
+            l.setSelector(new ColorDrawable(0x00000000));
+        }
+
+        // 顶栏（← + 地址栏）与设置页单选项都做成卡片
+        int rowPad = (int) dp(6);
+        rowFsApkTop.setBackground(roundRect(card, 14f));
+        rowFsDirTop.setBackground(roundRect(card, 14f));
+        rowFsApkTop.setPadding(rowPad, rowPad, rowPad, rowPad);
+        rowFsDirTop.setPadding(rowPad, rowPad, rowPad, rowPad);
+        rgTheme.setBackground(roundRect(card, 14f));
+        rgTheme.setPadding((int) dp(8), (int) dp(4), (int) dp(8), (int) dp(4));
+
+        txtCurPath.setTextColor(sub);
+
+        // 进度条：圆角轨道 + 圆角进度条
+        GradientDrawable track = roundRect(dark ? 0xFF232A34 : 0xFFE4EAF3, 6f);
+        GradientDrawable fill = roundRect(accent, 6f);
+        ClipDrawable clip = new ClipDrawable(fill, Gravity.LEFT, ClipDrawable.HORIZONTAL);
+        LayerDrawable ld = new LayerDrawable(new Drawable[] { track, clip });
+        ld.setId(0, android.R.id.background);
+        ld.setId(1, android.R.id.progress);
+        progressBar.setProgressDrawable(ld);
+
+        // 标题渐变：给文字画笔加 LinearGradient（同样只用系统 API）
+        TextView title = (TextView) findViewById(R.id.txtTitle);
+        if (title != null) {
+            title.setTextColor(accent);
+            title.getPaint().setShader(new LinearGradient(0, 0, 0, title.getTextSize() * 1.2f,
+                    accent, dark ? 0xFF8EC5FF : 0xFF7AA8FF, Shader.TileMode.CLAMP));
+        }
     }
 
     private void bindViews() {
@@ -417,7 +568,21 @@ public class MainActivity extends Activity {
     // ============================================================ 页面切换
     private void showPage(View target, boolean push) {
         View[] all = new View[] { pageImport, pageFsApk, pageBrowse, pageFsDir, pageExport, pageSettings };
-        for (int i = 0; i < all.length; i++) all[i].setVisibility(all[i] == target ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < all.length; i++) {
+            View v = all[i];
+            if (v == target) continue;
+            if (v.getVisibility() == View.VISIBLE) {
+                v.animate().cancel();
+                v.setVisibility(View.GONE);
+            }
+        }
+        // 新页面：淡入 + 从下方（或上方）轻移 12dp，纯 ViewPropertyAnimator
+        target.setVisibility(View.VISIBLE);
+        target.animate().cancel();
+        target.setAlpha(0f);
+        target.setTranslationY(dp(push ? 14 : -10));
+        target.animate().alpha(1f).translationY(0f).setDuration(230)
+                .setInterpolator(new DecelerateInterpolator()).start();
         if (push) pageStack.add(target);
     }
 
@@ -589,7 +754,7 @@ public class MainActivity extends Activity {
     /** 顶部那一条（返回按钮 + 地址栏）按当前主题上色，保证任何主题下都看得清 */
     private void paintFsTop(View row, Button back, EditText path) {
         if (row == null) return;
-        row.setBackgroundColor(dark ? 0xFF1B1E24 : 0xFFEDF0F4);
+        row.setBackground(roundRect(dark ? 0xFF1A1E26 : 0xFFFFFFFF, 14f));
         back.setTextColor(dark ? 0xFFE8EAEE : 0xFF1A1F28);
         path.setTextColor(dark ? 0xFFE8EAEE : 0xFF1A1F28);
         path.setHintTextColor(dark ? 0xFF6E747E : 0xFFAAB0B8);
@@ -646,10 +811,10 @@ public class MainActivity extends Activity {
                     t1.setTextColor(cUp);
                     t2.setText(it.file.getAbsolutePath());
                     t2.setTextColor(cUp);
-                    v.setBackgroundColor(cUpBg);
+                    styleRow(v, cUpBg, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
                     return v;
                 }
-                v.setBackgroundColor(cBg);
+                styleRow(v, cBg, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
                 if (it.isDir) {
                     t1.setText("📁  " + it.file.getName());
                     t1.setTextColor(cDir);
@@ -700,10 +865,10 @@ public class MainActivity extends Activity {
                     t1.setTextColor(cUp);
                     t2.setText(it.file.getAbsolutePath());
                     t2.setTextColor(cUp);
-                    v.setBackgroundColor(cUpBg);
+                    styleRow(v, cUpBg, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
                     return v;
                 }
-                v.setBackgroundColor(cBg);
+                styleRow(v, cBg, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
                 t1.setText("📁  " + it.file.getName());
                 t1.setTextColor(cDir);
                 t2.setText("文件夹");
@@ -846,7 +1011,7 @@ public class MainActivity extends Activity {
                     t1.setTextColor(cUp);
                     t2.setText(n.link.full.length() == 0 ? "（根目录）" : ("/" + n.link.full));
                     t2.setTextColor(cUp);
-                    v.setBackgroundColor(cUpBg);
+                    styleRow(v, cUpBg, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
                     return v;
                 }
                 if (n.isDir) {
@@ -854,7 +1019,7 @@ public class MainActivity extends Activity {
                     t1.setTextColor(cDir);
                     t2.setText("文件夹    " + n.children.size() + " 项");
                     t2.setTextColor(cGray);
-                    v.setBackgroundColor(picked.contains(n) ? cSel : cBg);
+                    styleRow(v, picked.contains(n) ? cSel : cBg, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
                 } else {
                     boolean smf = n.entry != null && n.entry.isSmf();
                     t1.setText("📄  " + n.name);
@@ -862,9 +1027,8 @@ public class MainActivity extends Activity {
                     t2.setText(ApkIndex.formatSize(n.entry == null ? 0 : n.entry.size)
                             + (smf ? "    可以导出" : "    不是 .smf，不可导出"));
                     t2.setTextColor(smf ? cGray : cGray);
-                    if (picked.contains(n)) v.setBackgroundColor(cSel);
-                    else if (!smf) v.setBackgroundColor(cBgGray);
-                    else v.setBackgroundColor(cBg);
+                    int bgColor = picked.contains(n) ? cSel : (!smf ? cBgGray : cBg);
+                    styleRow(v, bgColor, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
                 }
                 return v;
             }
