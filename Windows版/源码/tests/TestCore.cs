@@ -94,7 +94,7 @@ class TestCore
                     {
                         long written; string err;
                         bool ok = RsbUnpacker.Unpack(s, fs, out written, out err);
-                        Console.WriteLine("rslb      : ok=" + ok + "  written=" + written.ToString("N0") + (ok ? "" : "  err=" + err));
+                        Console.WriteLine("rsb容器   : ok=" + ok + "  written=" + written.ToString("N0") + (ok ? "" : "  err=" + err));
                         if (!ok) return 1;
                     }
                 }
