@@ -20,7 +20,7 @@
         tools:ignore="ScopedStorage" />
 
     <application
-        android:label="APVK"
+        android:label="RSB 提取器"
         android:icon="@mipmap/ic_launcher"
         android:largeHeap="true"
         android:requestLegacyExternalStorage="true"
@@ -29,7 +29,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="APVK"
+            android:label="RSB 提取器"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

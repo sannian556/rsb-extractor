@@ -10,7 +10,7 @@ $proj = Split-Path -Parent $PSScriptRoot
 if (-not $proj) { $proj = $PSScriptRoot }
 $proj = $PSScriptRoot
 $work = Join-Path $proj 'build'
-if (-not $OutApk) { $OutApk = Join-Path $work 'APVK.apk' }
+if (-not $OutApk) { $OutApk = Join-Path $work 'RSB提取器.apk' }
 
 function Find-Exe([string]$dir, [string]$name) {
     $p = Join-Path $dir $name

@@ -176,7 +176,7 @@ public class ApkIndex {
         throw new IOException("条目 " + e.name + " 用了不支持的压缩方式 " + e.method);
     }
 
-    /** 只看开头几个字节（判断要不要解 RSLB 壳） */
+    /** 只看开头几个字节（判断要不要解 RSB 容器壳） */
     public byte[] peek(ApkEntry e, int n) throws IOException {
         InputStream in = openEntry(e);
         try {

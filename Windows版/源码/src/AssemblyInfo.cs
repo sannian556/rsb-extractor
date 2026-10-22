@@ -2,11 +2,11 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 
 // 版本信息要填全 —— 空版本信息是杀软启发式扣分的典型项（这个坑之前踩过）
-[assembly: AssemblyTitle("APK 提取工具")]
-[assembly: AssemblyDescription("从 APK 中浏览并提取 .smf 文件（RSLB 外壳自动解包）")]
+[assembly: AssemblyTitle("RSB 提取器")]
+[assembly: AssemblyDescription("从 APK 中浏览并提取 .smf 文件（RSB 容器外壳自动解包）")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("APK 提取工具")]
-[assembly: AssemblyProduct("APK 提取工具")]
+[assembly: AssemblyCompany("RSB 提取器")]
+[assembly: AssemblyProduct("RSB 提取器")]
 [assembly: AssemblyCopyright("Copyright (C) 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

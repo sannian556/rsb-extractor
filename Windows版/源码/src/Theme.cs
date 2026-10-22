@@ -166,7 +166,7 @@ namespace ApkSmfExtractor
         }
 
         // ============================================================ 设置持久化
-        /// <summary>%APPDATA%\APK提取工具\设置.txt（跟「文件比较器」一个做法，手写 key=value）</summary>
+        /// <summary>%APPDATA%\RSB提取器\设置.txt（跟「文件比较器」一个做法，手写 key=value）</summary>
         public static string SettingsPath
         {
             get
@@ -174,7 +174,7 @@ namespace ApkSmfExtractor
                 try
                 {
                     string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                        "APK提取工具");
+                        "RSB提取器");
                     return Path.Combine(dir, "设置.txt");
                 }
                 catch { return null; }
@@ -217,7 +217,7 @@ namespace ApkSmfExtractor
                 string dir = Path.GetDirectoryName(p);
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 string val = Current == Mode.Light ? "light" : (Current == Mode.Dark ? "dark" : "auto");
-                File.WriteAllText(p, "# APK 提取工具 设置\r\ntheme=" + val + "\r\n");
+                File.WriteAllText(p, "# RSB 提取器设置\r\ntheme=" + val + "\r\n");
             }
             catch { }
         }

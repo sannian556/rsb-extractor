@@ -11,7 +11,7 @@ import java.util.List;
  *
  * 规则（按需求）：
  *   · 只导出 .smf 结尾的文件；其它类型记为失败并说明原因；
- *   · .smf 里如果是 RSLB 外壳 → 解包成明文 rsb1 再写；本来就是明文的 → 原样导出；
+ *   · .smf 里如果是 RSB 容器外壳 → 解包成明文 rsb1 再写；本来就是明文的 → 原样导出；
  *   · 写文件走 Sink 接口 —— Android 端用 SAF 的 DocumentsContract 实现，PC 测试用 FileOutputStream。
  */
 public class Exporter {
@@ -56,10 +56,10 @@ public class Exporter {
             byte[] head4 = apk.peek(e, 4);
             out = sink.create(e.baseName());
 
-            if (RslbUnpacker.isRslb(head4)) {
+            if (RsbUnpacker.isRsb(head4)) {
                 InputStream in = apk.openEntry(e);
                 try {
-                    RslbUnpacker.unpack(in, out, null);
+                    RsbUnpacker.unpack(in, out, null);
                 } finally {
                     try { in.close(); } catch (IOException ignored) { }
                 }

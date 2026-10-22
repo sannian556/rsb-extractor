@@ -1,11 +1,11 @@
 ﻿param(
     [switch]$SkipSingle        # 只编 XP~Win11 版，不编单文件免配置版
 )
-# 编译「APK 提取工具」（Windows 版）—— 用系统自带的 csc，零第三方依赖
+# 编译「RSB 提取器」（Windows 版）—— 用系统自带的 csc，零第三方依赖
 #
-#   产物 1：build\APK提取工具.exe                    —— 用 CLR 2.0 的 csc 编 + exe.config 同时声明
+#   产物 1：build\RSB提取器.exe                    —— 用 CLR 2.0 的 csc 编 + exe.config 同时声明
 #                                                      v4.0/v2.0.50727 → XP ~ Win11 一份 exe 通吃
-#   产物 2：build\APK提取工具(单文件免配置版).exe      —— 用 CLR 4.0 的 csc 编，不需要配置文件
+#   产物 2：build\RSB提取器(单文件免配置版).exe      —— 用 CLR 4.0 的 csc 编，不需要配置文件
 #                                                      （系统有 .NET 4 就行，Win8+ 默认都有）
 #
 # 两个坑：
@@ -40,7 +40,7 @@ function Invoke-Csc([string]$csc, [string]$out) {
 }
 
 Write-Output '--- 1/2 XP ~ Win11 版（CLR 2.0 编译）---'
-$exe = Join-Path $outDir 'APK提取工具.exe'
+$exe = Join-Path $outDir 'RSB提取器.exe'
 if (Invoke-Csc $csc2 $exe) {
     $cfg = @'
 <?xml version="1.0" encoding="utf-8"?>
@@ -52,13 +52,13 @@ if (Invoke-Csc $csc2 $exe) {
 </configuration>
 '@
     # 配置文件也必须是 UTF-8（无 BOM 即可，.NET 认 XML 声明的 utf-8）
-    [System.IO.File]::WriteAllText((Join-Path $outDir 'APK提取工具.exe.config'), ($cfg -replace "`r?`n", "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText((Join-Path $outDir 'RSB提取器.exe.config'), ($cfg -replace "`r?`n", "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
     Write-Output ("  " + (Split-Path $exe -Leaf) + " = " + [math]::Round((Get-Item $exe).Length / 1KB, 1) + " KB (+ 同名 .exe.config)")
 }
 
 if (-not $SkipSingle) {
     Write-Output '--- 2/2 单文件免配置版（CLR 4.0 编译）---'
-    $exe2 = Join-Path $outDir 'APK提取工具(单文件免配置版).exe'
+    $exe2 = Join-Path $outDir 'RSB提取器(单文件免配置版).exe'
     if (Invoke-Csc $csc4 $exe2) {
         Write-Output ("  " + (Split-Path $exe2 -Leaf) + " = " + [math]::Round((Get-Item $exe2).Length / 1KB, 1) + " KB")
     }

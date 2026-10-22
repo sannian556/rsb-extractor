@@ -1,6 +1,6 @@
 ﻿param(
-    [string]$Title = 'APK 提取工具',
-    [string]$Proc  = 'APK提取工具',
+    [string]$Title = 'RSB 提取器',
+    [string]$Proc  = 'RSB提取器',
     [string]$Out   = "$env:TEMP\apvk-shot.png",
     [string]$Exe   = '',
     [string[]]$ExeArgs = @(),

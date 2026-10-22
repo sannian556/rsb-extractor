@@ -7,7 +7,7 @@ using ApkSmfExtractor;
 
 /// <summary>
 /// 导出链路端到端测试：TestExport.exe &lt;apk&gt; &lt;输出目录&gt;
-/// 覆盖三种情况：RSLB 外壳（要解包）、明文 .smf（原样导出）、非 .smf（应失败）
+/// 覆盖三种情况：RSB 容器外壳（要解包）、明文 .smf（原样导出）、非 .smf（应失败）
 /// </summary>
 class TestExport
 {
@@ -32,7 +32,7 @@ class TestExport
         {
             r.Open(apkPath);
             List<ApkEntry> picked = new List<ApkEntry>();
-            picked.Add(Find(r, "assets/dino.rsb.smf"));            // RSLB，小
+            picked.Add(Find(r, "assets/dino.rsb.smf"));            // RSB 容器，小
             picked.Add(Find(r, "assets/ConfigManifest.json.smf")); // 明文 smf
             picked.Add(Find(r, "assets/init.rsb.tag.smf"));        // 明文 smf（34 字节）
             picked.Add(Find(r, "assets/wechaticon.png"));          // 非 smf → 必须失败
@@ -47,7 +47,7 @@ class TestExport
             Check(o.Failed == 1, "失败 1 个（png 不是 smf）");
             Check(o.Detail.Count == 1 && o.Detail[0].IndexOf("png") >= 0, "失败明细指向 png");
 
-            // dino：RSLB 解出来后应当是 21,483,520 字节，头是 1bsr
+            // dino：RSB 容器解出来后应当是 21,483,520 字节，头是 1bsr
             string dino = Path.Combine(outDir, "dino.rsb.smf");
             Check(File.Exists(dino), "dino.rsb.smf 已写出");
             if (File.Exists(dino))

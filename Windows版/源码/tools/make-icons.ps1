@@ -7,7 +7,7 @@
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
-if (-not $OutDir) { $OutDir = Join-Path $PSScriptRoot '..\..\APK提取工具\图标候选' }
+if (-not $OutDir) { $OutDir = Join-Path $PSScriptRoot '..\..\RSB提取器\图标候选' }
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force -Path $OutDir | Out-Null }
 
 # ---------------------------------------------------------------- 公共绘制

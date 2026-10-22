@@ -9,7 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * RSLB 解包器 —— PvZ2 中国版 APK 里 assets/*.rsb.smf 外面那层壳。
+ * RSB 容器解包器 —— PvZ2 中国版 APK 里 assets/*.rsb.smf 外面那层壳。
  *
  * 格式（实测自 植物大战僵尸2 4.2.4，33 个包全部通过校验）：
  *   头 32 字节: "RSLB" | u32 版本 | u64 未压缩总大小 | u64 压缩区大小 | u32 块大小 | u32 块数
@@ -23,7 +23,7 @@ import java.io.OutputStream;
  * 内存：压缩数据不整块读进来，直接把"跳掉 5 字节头的受限流"交给解码器，
  * 峰值就是解码器自己那 32MB 窗口。
  */
-public class RslbUnpacker {
+public class RsbUnpacker {
 
     public interface Progress {
         void onBlock(int index, int total, long bytesSoFar);
@@ -32,15 +32,15 @@ public class RslbUnpacker {
     public static final int HEADER_SIZE = 32;
     public static final int BLOCK_REC_SIZE = 36;
 
-    public static boolean isRslb(byte[] head) {
+    public static boolean isRsb(byte[] head) {
         return head != null && head.length >= 4
                 && head[0] == 'R' && head[1] == 'S' && head[2] == 'L' && head[3] == 'B';
     }
 
-    /** 解 RSLB 写到 out，返回写出的字节数 */
+    /** 解 RSB 容器写到 out，返回写出的字节数 */
     public static long unpack(InputStream in, OutputStream out, Progress cb) throws IOException {
         byte[] head = readFully(in, HEADER_SIZE);
-        if (!isRslb(head)) throw new IOException("不是 RSLB 文件（开头不是 RSLB）");
+        if (!isRsb(head)) throw new IOException("不是 RSB 容器文件（开头不是 RSLB）");
 
         long uncompressedTotal = le64(head, 8);
         long blockCount = le32(head, 28);
@@ -109,7 +109,7 @@ public class RslbUnpacker {
         int got = 0;
         while (got < len) {
             int r = in.read(b, got, len - got);
-            if (r <= 0) throw new EOFException("读取 RSLB 数据时意外结束");
+            if (r <= 0) throw new EOFException("读取 RSB 容器数据时意外结束");
             got += r;
         }
     }

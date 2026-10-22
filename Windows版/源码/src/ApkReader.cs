@@ -350,7 +350,7 @@ namespace ApkSmfExtractor
             throw new NotSupportedException("条目 " + e.Name + " 用了不支持的压缩方式 " + e.Method);
         }
 
-        /// <summary>把条目内容全部读成 byte[]（供小的 .smf 用；RSLB 走流式）</summary>
+        /// <summary>把条目内容全部读成 byte[]（供小的 .smf 用；RSB 容器走流式）</summary>
         public byte[] ReadAll(ApkEntry e)
         {
             using (Stream s = OpenEntry(e))

@@ -1,7 +1,7 @@
 import com.apksmf.extractor.ApkEntry;
 import com.apksmf.extractor.ApkIndex;
 import com.apksmf.extractor.Exporter;
-import com.apksmf.extractor.RslbUnpacker;
+import com.apksmf.extractor.RsbUnpacker;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,7 +18,7 @@ import java.util.List;
  *
  * 验证点：
  *   1) ZIP 中央目录解析 —— 条目数和 Windows 版一致（1353）
- *   2) RSLB 解包 —— init.rsb.smf 解出 573,800,448 字节且 MD5 与 Windows 版一模一样
+ *   2) RSB 容器解包 —— init.rsb.smf 解出 573,800,448 字节且 MD5 与 Windows 版一模一样
  *   3) 小包 dino.rsb.smf 解出 21,483,520 字节
  *   4) Exporter 走通（含非 .smf 计失败）
  */
@@ -56,14 +56,14 @@ public class TestCore {
         check(init != null, "找得到 assets/init.rsb.smf");
         if (init != null) {
             byte[] h = apk.peek(init, 4);
-            check(RslbUnpacker.isRslb(h), "init 开头是 RSLB");
+            check(RsbUnpacker.isRsb(h), "init 开头是 RSB 容器");
 
             long t0 = System.currentTimeMillis();
             File out = new File(outDir, "init.rsb.smf");
             OutputStream os = new FileOutputStream(out);
             long written;
             try {
-                written = RslbUnpacker.unpack(apk.openEntry(init), os, null);
+                written = RsbUnpacker.unpack(apk.openEntry(init), os, null);
             } finally {
                 os.close();
             }
@@ -81,7 +81,7 @@ public class TestCore {
             OutputStream os = new FileOutputStream(out);
             long written;
             try {
-                written = RslbUnpacker.unpack(apk.openEntry(dino), os, null);
+                written = RsbUnpacker.unpack(apk.openEntry(dino), os, null);
             } finally {
                 os.close();
             }

@@ -19,7 +19,7 @@ namespace ApkSmfExtractor
     ///
     /// 规则（按需求）：
     ///   · 只导出 .smf 结尾的文件；其它类型一律记为失败并说明原因；
-    ///   · .smf 里如果是 RSLB 外壳 → 解包成明文 rsb1 再写；本来就是明文的 → 原样导出；
+    ///   · .smf 里如果是 RSB 容器外壳 → 解包成明文 rsb1 再写；本来就是明文的 → 原样导出；
     ///   · 目标文件重名时自动加 _2 / _3 后缀，不覆盖已有文件。
     /// </summary>
     public static class Exporter
@@ -79,7 +79,7 @@ namespace ApkSmfExtractor
                     }
                 }
 
-                if (RslbUnpacker.IsRslbHead(head4))
+                if (RsbUnpacker.IsRsbHead(head4))
                 {
                     using (Stream s = apk.OpenEntry(e))
                     using (FileStream fs = new FileStream(outPath, FileMode.Create, FileAccess.Write,
@@ -87,18 +87,18 @@ namespace ApkSmfExtractor
                     {
                         long written;
                         string uerr;
-                        if (!RslbUnpacker.Unpack(s, fs, out written, out uerr))
+                        if (!RsbUnpacker.Unpack(s, fs, out written, out uerr))
                         {
                             fs.Close();
                             TryDelete(outPath);
-                            err = "RSLB 解包失败：" + uerr;
+                            err = "RSB 容器解包失败：" + uerr;
                             return null;
                         }
                     }
                     return outPath;
                 }
 
-                // 不是 RSLB（例如 ConfigManifest.json.smf 本来就是明文）→ 原样导出
+                // 不是 RSB 容器（例如 ConfigManifest.json.smf 本来就是明文）→ 原样导出
                 using (FileStream fs = new FileStream(outPath, FileMode.Create, FileAccess.Write,
                                                       FileShare.None, 1 << 20))
                 {

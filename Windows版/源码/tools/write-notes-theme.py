@@ -15,7 +15,7 @@ log = read(os.path.join(ROOT, '操作日志.md'))
 entry = u'''
 ### 42. 给两个 exe 加「方案 B」的深色模式 —— 已执行（2026-09-21）
 
-**需求**：用户问「exe 程序支不支持深色模式」→ 发现 `APK提取工具.exe`（Windows 版）**固定浅色**（配色全写死），
+**需求**：用户问「exe 程序支不支持深色模式」→ 发现 `RSB提取器.exe`（Windows 版）**固定浅色**（配色全写死），
 而 `PvZ 2 SHUTTLE Toolkit—GUI.exe` 有完整主题系统但有个 bug；用户要求**两个都做**，并选定
 **方案 B**：三态（跟随系统 / 浅色 / 深色），**系统不支持深色时「跟随系统」变灰 + 说明原因**。
 
@@ -26,8 +26,8 @@ entry = u'''
   `catch → return false`，等于"读不到就按深色" → **老系统（XP/Win7）一勾「跟随系统主题」界面反而变深，正好反了**。
 - **「深色」开关不跟着变灰**：系统不支持只影响"跟随"，深色是自绘的、XP 上照样能用。
 
-**① `APK提取工具.exe`（Windows 版，从零加的主题）**：
-- 新增 `src\\Theme.cs`：深浅两套调色板 + 系统探测 + 三态持久化（`%APPDATA%\\APK提取工具\\设置.txt`，
+**① `RSB提取器.exe`（Windows 版，从零加的主题）**：
+- 新增 `src\\Theme.cs`：深浅两套调色板 + 系统探测 + 三态持久化（`%APPDATA%\\RSB提取器\\设置.txt`，
   `theme=auto|light|dark`）+ uxtheme 滚动条 + DWM 标题栏（全部 try/catch，老系统上静默降级）。
 - 浅色下**一切照旧**（按钮仍是 `FlatStyle.System`、ToolStrip 仍用系统渲染器、ListView 不自绘）；
   切到深色才换：按钮改自绘扁平、ToolStrip 换 `DarkToolStripRenderer`、ListView 开 `OwnerDraw`
@@ -56,7 +56,7 @@ entry = u'''
   「跟随系统主题」勾选态、开关照旧变灰、无崩溃** ✓。**不支持的灰态在本机测不了**（本机 Windows 支持深色），
   但那段判据与 APK 工具里 `--no-sys-theme` 验证过的是同一套逻辑 ✓。
 
-**部署**：`APK提取工具.exe`（448 KB）+ config + 单文件版 → `APK提取工具\\`、桌面、`APVK本地仓库\\Windows版\\` 三处
+**部署**：`RSB提取器.exe`（448 KB）+ config + 单文件版 → `RSB提取器\\`、桌面、`RSB提取器本地仓库\\Windows版\\` 三处
 （哈希一致 ✓，提交 `28366e3`）；PvZ GUI（473.5 KB）→ `PvZ 2 SHUTTLE Toolkit Release V.2.4\\`。
 
 **这次踩的坑**：
@@ -100,26 +100,26 @@ write(os.path.join(ROOT, '踩坑与注意事项.md'), pit)
 
 # ---------- 3) 项目档案：更新两个体积数字 ----------
 proj = read(os.path.join(ROOT, '项目档案.md'))
-proj = rep(proj, u'`APK提取工具\\\\APK提取工具.exe`（432 KB，XP~Win11）',
-                 u'`APK提取工具\\\\APK提取工具.exe`（**448 KB**，XP~Win11；已支持深色模式）', '档案 · Win 体积')
+proj = rep(proj, u'`RSB提取器\\\\RSB提取器.exe`（432 KB，XP~Win11）',
+                 u'`RSB提取器\\\\RSB提取器.exe`（**448 KB**，XP~Win11；已支持深色模式）', '档案 · Win 体积')
 proj = rep(proj, u'`PvZ工具箱工程\\\\build\\\\PvZ 2 SHUTTLE Toolkit—GUI.exe`（151 KB）',
                  u'`PvZ工具箱工程\\\\build\\\\PvZ 2 SHUTTLE Toolkit—GUI.exe`（**473 KB**）', '档案 · GUI 体积')
 write(os.path.join(ROOT, '项目档案.md'), proj)
 
 # ---------- 4) 环境与工具链：Windows 构建改成走 build.ps1 ----------
 env = read(os.path.join(ROOT, '环境与工具链.md'))
-env = rep(env, u'**Windows（APK提取工具 / 文件比较器原生版）** —— 系统自带 csc，零依赖：',
-                u'**Windows（APK提取工具）** —— 直接跑现成的构建脚本（系统自带 csc，零依赖）：\n'
-                u'```powershell\npowershell -ExecutionPolicy Bypass -File "D:\\AI deekseek\\APK提取工具工程\\build.ps1"\n'
-                u'# 出两个：build\\APK提取工具.exe（CLR 2.0 + exe.config，XP~Win11）与单文件免配置版（CLR 4.0）\n'
+env = rep(env, u'**Windows（RSB提取器 / 文件比较器原生版）** —— 系统自带 csc，零依赖：',
+                u'**Windows（RSB提取器）** —— 直接跑现成的构建脚本（系统自带 csc，零依赖）：\n'
+                u'```powershell\npowershell -ExecutionPolicy Bypass -File "D:\\AI deekseek\\RSB提取器工程\\build.ps1"\n'
+                u'# 出两个：build\\RSB提取器.exe（CLR 2.0 + exe.config，XP~Win11）与单文件免配置版（CLR 4.0）\n'
                 u'```\n\n**手敲 csc 的话（文件比较器原生版等）**：', '环境 · Win 构建')
 write(os.path.join(ROOT, '环境与工具链.md'), env)
 
 # ---------- 5) 仓库 README：Windows 构建那一节 ----------
-rd = read(os.path.join(ROOT, 'APVK本地仓库', 'README.md'))
+rd = read(os.path.join(ROOT, 'RSB提取器本地仓库', 'README.md'))
 rd = rep(rd, u'**Windows**：零第三方依赖，用系统自带的 csc 编译（不需要装任何东西）：',
               u'**Windows**：零第三方依赖，用系统自带的 csc 编译（不需要装任何东西）；工程里带了 `build.ps1`，\n'
               u'直接跑它就出两个 exe（CLR 2.0 的 XP~Win11 版 + CLR 4.0 的单文件免配置版）：', 'README · Win 构建')
-write(os.path.join(ROOT, 'APVK本地仓库', 'README.md'), rd)
+write(os.path.join(ROOT, 'RSB提取器本地仓库', 'README.md'), rd)
 
 print('失败：', fails if fails else '无')

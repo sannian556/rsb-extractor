@@ -87,13 +87,13 @@ class TestCore
                 Console.WriteLine("head4     : " + ToHex(head4) + "   (" + Encoding.ASCII.GetString(head4) + ")");
 
                 DateTime t0 = DateTime.Now;
-                if (RslbUnpacker.IsRslbHead(head4))
+                if (RsbUnpacker.IsRsbHead(head4))
                 {
                     using (Stream s = r.OpenEntry(e))
                     using (FileStream fs = new FileStream(outp, FileMode.Create, FileAccess.Write))
                     {
                         long written; string err;
-                        bool ok = RslbUnpacker.Unpack(s, fs, out written, out err);
+                        bool ok = RsbUnpacker.Unpack(s, fs, out written, out err);
                         Console.WriteLine("rslb      : ok=" + ok + "  written=" + written.ToString("N0") + (ok ? "" : "  err=" + err));
                         if (!ok) return 1;
                     }

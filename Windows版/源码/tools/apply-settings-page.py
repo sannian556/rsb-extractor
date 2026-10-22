@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import io, os
-SRC = r'D:\AI deekseek\APK提取工具工程\src'
+SRC = r'D:\AI deekseek\RSB提取器工程\src'
 fails = []
 def read(p): return io.open(p, 'r', encoding='utf-8').read().replace('\r\n', '\n')
 def write(p, t): io.open(p, 'w', encoding='utf-8', newline='\r\n').write(t)
@@ -91,7 +91,7 @@ mf = rep(mf, '            _txtApkPath.Left = cx - _txtApkPath.Width / 2;\n      
 settings_block = u'''
         // ============================================================ 界面 4：设置
         /// <summary>
-        /// 照安卓版 APVK 的思路：主界面右下角一个「设置」按钮，点进去是设置页。
+        /// 照安卓版 RSB 提取器的思路：主界面右下角一个「设置」按钮，点进去是设置页。
         /// 样式照 Windows 来 —— 普通按钮 + 单选按钮组，不用手机那种大圆角卡片。
         /// 目前两项：外观（跟随系统 / 浅色 / 深色）+ 关于（版本、设置文件位置）。
         /// </summary>
@@ -184,7 +184,7 @@ settings_block = u'''
             {
                 string ver = "?";
                 try { ver = Application.ProductVersion; } catch { }
-                _lblAbout.Text = "APK 提取工具　版本 " + ver
+                _lblAbout.Text = "RSB 提取器　版本 " + ver
                     + "\\r\\n外观设置存在：" + Theme.SettingsPath
                     + "\\r\\n（删掉那个文件就恢复默认：跟随系统）";
             }

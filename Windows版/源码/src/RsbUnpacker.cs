@@ -5,7 +5,7 @@ using SevenZip.Compression.LZMA;
 
 namespace ApkSmfExtractor
 {
-    public class RslbBlock
+    public class RsbBlock
     {
         public long UncompressedOffset;
         public long UncompressedSize;
@@ -13,24 +13,24 @@ namespace ApkSmfExtractor
         public int CompressedSize;
     }
 
-    public class RslbInfo
+    public class RsbInfo
     {
         public int Version;
         public long UncompressedTotal;
         public long CompressedTotal;
         public int BlockSize;
         public int BlockCount;
-        public List<RslbBlock> Blocks = new List<RslbBlock>();
+        public List<RsbBlock> Blocks = new List<RsbBlock>();
 
         public string Describe()
         {
-            return string.Format("RSLB v{0}  未压缩总量={1:N0}  压缩区={2:N0}  块={3} x {4:N0}",
+            return string.Format("RSB 容器 v{0}  未压缩总量={1:N0}  压缩区={2:N0}  块={3} x {4:N0}",
                 Version, UncompressedTotal, CompressedTotal, BlockCount, BlockSize);
         }
     }
 
     /// <summary>
-    /// RSLB 解包器 —— PvZ2 中国版 APK 里 assets/*.rsb.smf 的那层壳。
+    /// RSB 容器解包器 —— PvZ2 中国版 APK 里 assets/*.rsb.smf 的那层壳。
     ///
     /// 格式（实测自 植物大战僵尸2 4.2.4，33 个包全部通过校验）：
     ///   头 32 字节: "RSLB" | u32 版本=1 | u64 未压缩总大小 | u64 压缩区大小 | u32 块大小 | u32 块数
@@ -41,12 +41,12 @@ namespace ApkSmfExtractor
     ///   1) raw LZMA 流没有结束标记，所以必须把"未压缩大小"喂给解码器，让它精确停在那个位置；
     ///   2) 字典字段实测有 0 的情况，为 0 时按 32MB 兜底（字典只影响回溯窗口，放大是安全的）。
     /// </summary>
-    public static class RslbUnpacker
+    public static class RsbUnpacker
     {
         public const int HeaderSize = 32;
         public const int BlockRecSize = 36;
 
-        public static bool IsRslbHead(byte[] head4)
+        public static bool IsRsbHead(byte[] head4)
         {
             return head4 != null && head4.Length >= 4
                 && head4[0] == (byte)'R' && head4[1] == (byte)'S'
@@ -60,13 +60,13 @@ namespace ApkSmfExtractor
         }
 
         /// <summary>只读头部和块表，用于预览/诊断</summary>
-        public static RslbInfo ReadInfo(Stream input)
+        public static RsbInfo ReadInfo(Stream input)
         {
             byte[] head = new byte[HeaderSize];
             ReadExactly(input, head, 0, HeaderSize);
-            if (!IsRslbHead(head)) throw new InvalidDataException("不是 RSLB 文件");
+            if (!IsRsbHead(head)) throw new InvalidDataException("不是 RSB 容器文件");
 
-            RslbInfo info = new RslbInfo();
+            RsbInfo info = new RsbInfo();
             info.Version = BitConverter.ToInt32(head, 4);
             info.UncompressedTotal = BitConverter.ToInt64(head, 8);
             info.CompressedTotal = BitConverter.ToInt64(head, 16);
@@ -79,7 +79,7 @@ namespace ApkSmfExtractor
             for (int i = 0; i < info.BlockCount; i++)
             {
                 int o = i * BlockRecSize;
-                RslbBlock b = new RslbBlock();
+                RsbBlock b = new RsbBlock();
                 b.UncompressedOffset = BitConverter.ToInt64(tbl, o);
                 b.UncompressedSize = BitConverter.ToInt64(tbl, o + 8);
                 b.CompressedOffset = BitConverter.ToInt64(tbl, o + 16);
@@ -90,7 +90,7 @@ namespace ApkSmfExtractor
         }
 
         /// <summary>
-        /// 把 RSLB 流解成明文 rsb1 写到 output。
+        /// 把 RSB 容器流解成明文 rsb1 写到 output。
         /// 全程只做顺序读取，所以 APK 里那种不可 Seek 的流也能直接用。
         /// </summary>
         public static bool Unpack(Stream input, Stream output, out long written, out string error)
@@ -99,7 +99,7 @@ namespace ApkSmfExtractor
             error = null;
             try
             {
-                RslbInfo info = ReadInfo(input);
+                RsbInfo info = ReadInfo(input);
 
                 long expectPos = HeaderSize + (long)BlockRecSize * info.BlockCount;
                 long total = 0;
@@ -108,7 +108,7 @@ namespace ApkSmfExtractor
 
                 for (int i = 0; i < info.BlockCount; i++)
                 {
-                    RslbBlock b = info.Blocks[i];
+                    RsbBlock b = info.Blocks[i];
                     if (b.CompressedOffset != expectPos)
                         throw new InvalidDataException(string.Format(
                             "第 {0} 块偏移不连续（表里 {1}，实际应在 {2}）", i, b.CompressedOffset, expectPos));
@@ -157,7 +157,7 @@ namespace ApkSmfExtractor
             while (got < count)
             {
                 int n = s.Read(buf, off + got, count - got);
-                if (n <= 0) throw new EndOfStreamException("读取 RSLB 数据时意外结束");
+                if (n <= 0) throw new EndOfStreamException("读取 RSB 容器数据时意外结束");
                 got += n;
             }
         }

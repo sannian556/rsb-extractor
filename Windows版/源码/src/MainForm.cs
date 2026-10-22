@@ -74,7 +74,7 @@ namespace ApkSmfExtractor
             if (_scale < 1f) _scale = 1f;
             Theme.UiScale = _scale;      // 自绘控件（比如设置页的单选按钮）也要按同样的比例放大
 
-            Text = "APK 提取工具";
+            Text = "RSB 提取器";
             AutoScaleMode = AutoScaleMode.None;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(S(940), S(600));
@@ -914,7 +914,7 @@ namespace ApkSmfExtractor
 
         // ============================================================ 界面 4：设置
         /// <summary>
-        /// 照安卓版 APVK 的思路：主界面右下角一个「设置」按钮，点进去是设置页。
+        /// 照安卓版 RSB 提取器的思路：主界面右下角一个「设置」按钮，点进去是设置页。
         /// 样式照 Windows 来 —— 普通按钮 + 单选按钮组，不用手机那种大圆角卡片。
         /// 目前两项：外观（跟随系统 / 浅色 / 深色）+ 关于（版本、设置文件位置）。
         /// </summary>
@@ -1012,7 +1012,7 @@ namespace ApkSmfExtractor
                 // 程序集版本是 1.0.0.0 这种四段式，界面上只留前两段（1.0），跟安卓版显示的一致
                 string[] seg = ver.Split('.');
                 if (seg.Length > 2) ver = seg[0] + "." + seg[1];
-                _lblAbout.Text = "APK 提取工具　版本 " + ver
+                _lblAbout.Text = "RSB 提取器　版本 " + ver
                     + "\r\n外观设置存在：" + Theme.SettingsPath
                     + "\r\n（删掉那个文件就恢复默认：跟随系统）";
             }

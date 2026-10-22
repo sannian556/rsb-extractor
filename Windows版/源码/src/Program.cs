@@ -16,7 +16,7 @@ namespace ApkSmfExtractor
         [STAThread]
         static void Main(string[] args)
         {
-            // 出异常要留下证据：写 %TEMP%\APK提取工具-crash.log，同时弹个框告诉用户
+            // 出异常要留下证据：写 %TEMP%\RSB提取器-crash.log，同时弹个框告诉用户
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.ThreadException += delegate(object s, ThreadExceptionEventArgs e) { ReportCrash(e.Exception); };
             AppDomain.CurrentDomain.UnhandledException +=
@@ -211,7 +211,7 @@ namespace ApkSmfExtractor
 
         public static string CrashLogPath
         {
-            get { return Path.Combine(Path.GetTempPath(), "APK提取工具-crash.log"); }
+            get { return Path.Combine(Path.GetTempPath(), "RSB提取器-crash.log"); }
         }
 
         private static void ReportCrash(Exception ex)
@@ -227,7 +227,7 @@ namespace ApkSmfExtractor
             {
                 MessageBox.Show("程序出错了：\n\n" + (ex == null ? "未知错误" : ex.Message) +
                     "\n\n详细信息已写入：\n" + CrashLogPath,
-                    "APK 提取工具", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    "RSB 提取器", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch { }
         }

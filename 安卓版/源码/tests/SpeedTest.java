@@ -14,7 +14,7 @@ public class SpeedTest {
         long t0 = System.currentTimeMillis();
         OutputStream os = new FileOutputStream(new File(a[2], "out.bin"));
         long n;
-        try { n = RslbUnpacker.unpack(apk.openEntry(e), os, null); } finally { os.close(); }
+        try { n = RsbUnpacker.unpack(apk.openEntry(e), os, null); } finally { os.close(); }
         long ms = System.currentTimeMillis() - t0;
         System.out.println(e.baseName() + " -> " + n + " bytes in " + ms + " ms  (" + (n/1048576.0/(ms/1000.0)) + " MB/s)");
     }

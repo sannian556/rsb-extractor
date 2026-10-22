@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * APK 提取工具（安卓版）
+ * RSB 提取器（安卓版）
  *
  * 页面：
  *   1) 导入      —— 按钮 + 可输入的地址栏（粘贴路径回车即导入）+ 设置

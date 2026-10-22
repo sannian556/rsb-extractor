@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import io, os, sys
 
-ROOT = r'D:\AI deekseek\APK提取工具工程\src'
+ROOT = r'D:\AI deekseek\RSB提取器工程\src'
 MF = os.path.join(ROOT, 'MainForm.cs')
 PG = os.path.join(ROOT, 'Program.cs')
 
