@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">RSB 提取器</string>
+    <!-- 作者水印（界面不引用；aapt2 dump resources 可查到） -->
+    <string name="author_signature">sannian556 · https://github.com/sannian556 · https://b23.tv/pm5cHXP</string>
 </resources>

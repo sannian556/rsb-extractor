@@ -32,8 +32,12 @@ Write-Output ("源文件 " + $files.Count + " 个")
 function Invoke-Csc([string]$csc, [string]$out) {
     if (-not (Test-Path $csc)) { Write-Output ("  跳过（没有 " + $csc + "）"); return $false }
     if (Test-Path $out) { Remove-Item $out -Force }
+    # 作者水印：嵌入 assets\AUTHOR.txt 作为资源（程序不读它，界面也不显示；解包 exe 才看得到）
+    $res = Join-Path $proj 'assets\AUTHOR.txt'
     $args = @('/nologo', '/target:winexe', '/codepage:65001', '/optimize+',
-              ('/win32icon:' + $icon), ('/out:' + $out)) + $files
+              ('/win32icon:' + $icon), ('/out:' + $out))
+    if (Test-Path $res) { $args += ('/resource:' + $res + ',RsbAuthor.txt') }
+    $args += $files
     & $csc @args
     if ($LASTEXITCODE -ne 0) { throw ("csc 失败：" + $csc) }
     return $true

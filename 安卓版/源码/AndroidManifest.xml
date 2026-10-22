@@ -26,6 +26,16 @@
         android:requestLegacyExternalStorage="true"
         android:theme="@style/AppThemeLight">
 
+        <!-- 作者水印（不显示在界面上，反编译 / aapt2 dump xmltree 可见） -->
+        <meta-data android:name="com.apksmf.extractor.author"
+            android:value="sannian556" />
+        <meta-data android:name="com.apksmf.extractor.github"
+            android:value="https://github.com/sannian556" />
+        <meta-data android:name="com.apksmf.extractor.bilibili"
+            android:value="https://b23.tv/pm5cHXP" />
+        <meta-data android:name="com.apksmf.extractor.watermark"
+            android:value="sannian556 · 2026-10-22" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

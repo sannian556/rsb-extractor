@@ -58,9 +58,10 @@ if ($LASTEXITCODE -ne 0) { throw 'aapt2 compile 失败' }
 # ---- 2. 链接资源 + 生成 R.java ----
 Write-Output '--- 2/6 aapt2 link ---'
 $baseApk = Join-Path $work 'base.apk'
+# -A 把 assets\ 一起打进 APK（水印文件 assets\author.txt 就靠它）
 & $aapt2 link -o $baseApk -I $androidJar --manifest (Join-Path $proj 'AndroidManifest.xml') `
     -R $resZip --java (Join-Path $work 'gen') --min-sdk-version $minSdk --target-sdk-version $targetSdk `
-    --auto-add-overlay
+    -A (Join-Path $proj 'assets') --auto-add-overlay
 if ($LASTEXITCODE -ne 0) { throw 'aapt2 link 失败' }
 
 # ---- 3. javac ----

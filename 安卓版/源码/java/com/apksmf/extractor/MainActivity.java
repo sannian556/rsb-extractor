@@ -6,7 +6,9 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -24,6 +26,10 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.Settings;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.method.LinkMovementMethod;
+import android.text.style.ClickableSpan;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -47,6 +53,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -74,6 +81,14 @@ public class MainActivity extends Activity {
     // ---------------- 主题 ----------------
     private static final String PREFS = "apksmf";
     private static final String KEY_THEME = "theme";     // system / light / dark
+
+    /** 作者水印（不显示在界面上；logcat / 反编译 / 签名可查，用于证明版本来源） */
+    static final String AUTHOR_WATERMARK =
+            "sannian556 | https://github.com/sannian556 | https://b23.tv/pm5cHXP";
+    /** 官方签名证书的 SHA-256（换证书时必须同步改这里） */
+    private static final String OFFICIAL_CERT_SHA256 =
+            "F360C456D38C974059AA8A44D83FEE76F3FCBC5646E0F57917CD89DB2A4C7A51";
+    private static final String KEY_SIG_WARNED = "sig_warned";
     private static final int THEME_SYSTEM = 0, THEME_LIGHT = 1, THEME_DARK = 2;
     private int themeMode = THEME_SYSTEM;
     private boolean dark = false;
@@ -168,6 +183,8 @@ public class MainActivity extends Activity {
         bindViews();
         wireEvents();
         styleUi();
+        android.util.Log.d("RSB-Author", AUTHOR_WATERMARK);   // 只进 logcat，不显示
+        checkSignatureOnce();
 
         rbThemeSystem.setChecked(themeMode == THEME_SYSTEM);
         rbThemeLight.setChecked(themeMode == THEME_LIGHT);
@@ -355,6 +372,90 @@ public class MainActivity extends Activity {
             title.setTextColor(accent);
             title.getPaint().setShader(new LinearGradient(0, 0, 0, title.getTextSize() * 1.2f,
                     accent, dark ? 0xFF8EC5FF : 0xFF7AA8FF, Shader.TileMode.CLAMP));
+        }
+    }
+
+    // ============================================================ 作者水印 / 签名自检
+    /** 只在签名与官方不符（被人改包重签）时提示一次，之后不再打扰 */
+    private void checkSignatureOnce() {
+        try {
+            SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+            if (sp.getBoolean(KEY_SIG_WARNED, false)) return;
+            if (isOfficialSignature()) return;
+            sp.edit().putBoolean(KEY_SIG_WARNED, true).apply();
+            showAuthorWarn();
+        } catch (Throwable t) {
+            // 自检失败就当正常版本，别打扰用户
+        }
+    }
+
+    private boolean isOfficialSignature() {
+        try {
+            String fp = currentCertSha256();
+            return fp == null || fp.equalsIgnoreCase(OFFICIAL_CERT_SHA256);
+        } catch (Throwable t) {
+            return true;
+        }
+    }
+
+    /** 取当前安装包签名证书的 SHA-256（APK 被重签过就会变） */
+    private String currentCertSha256() throws Exception {
+        PackageManager pm = getPackageManager();
+        byte[] cert = null;
+        if (Build.VERSION.SDK_INT >= 28) {
+            PackageInfo pi = pm.getPackageInfo(getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES);
+            android.content.pm.SigningInfo si = pi.signingInfo;
+            if (si != null) {
+                Signature[] sigs = si.getApkContentsSigners();
+                if (sigs != null && sigs.length > 0) cert = sigs[0].toByteArray();
+            }
+        } else {
+            PackageInfo pi = pm.getPackageInfo(getPackageName(), PackageManager.GET_SIGNATURES);
+            if (pi.signatures != null && pi.signatures.length > 0) cert = pi.signatures[0].toByteArray();
+        }
+        if (cert == null) return null;
+        byte[] d = MessageDigest.getInstance("SHA-256").digest(cert);
+        StringBuilder sb = new StringBuilder();
+        for (byte b : d) sb.append(String.format("%02X", b & 0xFF));
+        return sb.toString();
+    }
+
+    /** 被人改包时的那句提示：链接可点，点「确定」后照常使用 */
+    private void showAuthorWarn() {
+        String text = "没想到我这么一个小软件都要被修改。还真是受宠若惊呀~\n"
+                + "可以修改，但是别忘记作者哦～\n\n"
+                + "作者：bilibili    github";
+        SpannableString ss = new SpannableString(text);
+        int i1 = text.indexOf("bilibili");
+        int i2 = text.indexOf("github");
+        ss.setSpan(new ClickableSpan() {
+            public void onClick(View w) { openUrl("https://b23.tv/pm5cHXP"); }
+        }, i1, i1 + "bilibili".length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ss.setSpan(new ClickableSpan() {
+            public void onClick(View w) { openUrl("https://github.com/sannian556"); }
+        }, i2, i2 + "github".length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        TextView msg = new TextView(this);
+        msg.setText(ss);
+        msg.setTextSize(15);
+        msg.setLineSpacing(dp(4), 1f);
+        msg.setPadding((int) dp(22), (int) dp(18), (int) dp(22), (int) dp(6));
+        msg.setTextColor(dark ? 0xFFE8EAEE : 0xFF1A1F28);
+        msg.setLinkTextColor(dark ? 0xFF8FC0FF : 0xFF0B57D0);
+        msg.setMovementMethod(LinkMovementMethod.getInstance());
+
+        new AlertDialog.Builder(this)
+                .setTitle("作者有话说")
+                .setView(msg)
+                .setPositiveButton("确定", null)
+                .show();
+    }
+
+    private void openUrl(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Throwable t) {
+            toast("打不开这个链接：" + url);
         }
     }
 
