@@ -128,10 +128,9 @@ public class MainActivity extends Activity {
     private RadioButton rbThemeSystem, rbThemeLight, rbThemeDark;
     private Button btnGrant, btnSettingsBack;
     private TextView txtVersion;
-    private TextView txtDefaultOutDir;
-    private Button btnPickDefaultDir;
+    private EditText edtDefaultOutDir;
+    private Button btnPickDefaultDir, btnSaveDefaultDir;
     private int dirPickMode = 0;        // 0 = 选导出输出目录，1 = 选"默认导出文件夹"
-
     // ---------------- 数据 ----------------
     private final ApkIndex apk = new ApkIndex();
     private String apkDisplayName = "";
@@ -321,7 +320,7 @@ public class MainActivity extends Activity {
         // 次按钮：卡片底 + 主题文字
         Button[] secondary = new Button[] { btnSettings, btnFsApkBack, btnFsApkUp, btnFsApkCancel,
                 btnFsDirBack, btnFsDirUp, btnFsDirCancel, btnGoExport, btnBack, btnSettingsBack, btnGrant,
-                btnPickDefaultDir };
+                btnPickDefaultDir, btnSaveDefaultDir };
         for (Button b : secondary) {
             b.setBackground(pressable(card, cardHit, 12f));
             b.setTextColor(text);
@@ -333,7 +332,7 @@ public class MainActivity extends Activity {
         btnGoExport.setTextColor(0xFFFFFFFF);
 
         // 输入框：圆角卡片，去掉系统自带下划线
-        EditText[] edits = new EditText[] { edtApkPath, edtFsApkPath, edtFsDirPath };
+        EditText[] edits = new EditText[] { edtApkPath, edtFsApkPath, edtFsDirPath, edtDefaultOutDir };
         for (EditText e : edits) {
             e.setBackground(pressable(card, cardHit, 12f));
             e.setTextColor(text);
@@ -362,7 +361,7 @@ public class MainActivity extends Activity {
         rgTheme.setPadding((int) dp(8), (int) dp(4), (int) dp(8), (int) dp(4));
 
         txtCurPath.setTextColor(sub);
-        if (txtDefaultOutDir != null) txtDefaultOutDir.setTextColor(sub);
+        if (edtDefaultOutDir != null) edtDefaultOutDir.setTextColor(text);
 
         // 进度条：圆角轨道 + 圆角进度条
         GradientDrawable track = roundRect(dark ? 0xFF232A34 : 0xFFE4EAF3, 6f);
@@ -515,8 +514,9 @@ public class MainActivity extends Activity {
         btnGrant = (Button) findViewById(R.id.btnGrant);
         btnSettingsBack = (Button) findViewById(R.id.btnSettingsBack);
         txtVersion = (TextView) findViewById(R.id.txtVersion);
-        txtDefaultOutDir = (TextView) findViewById(R.id.txtDefaultOutDir);
+        edtDefaultOutDir = (EditText) findViewById(R.id.edtDefaultOutDir);
         btnPickDefaultDir = (Button) findViewById(R.id.btnPickDefaultDir);
+        btnSaveDefaultDir = (Button) findViewById(R.id.btnSaveDefaultDir);
     }
 
     private void wireEvents() {
@@ -563,8 +563,7 @@ public class MainActivity extends Activity {
                 if (pos < 0 || pos >= items.size()) return;
                 FsItem it = items.get(pos);
                 if (it.isDir) {
-                    fsCur = it.file;
-                    loadFsApkList();
+                    enterFsDir(it.file);
                 } else {
                     if (it.file.getName().toLowerCase().endsWith(".apk")) {
                         tryOpenApk(it.file.getAbsolutePath());
@@ -598,8 +597,7 @@ public class MainActivity extends Activity {
                 if (pos < 0 || pos >= items.size()) return;
                 FsItem it = items.get(pos);
                 if (it.isDir) {
-                    fsCur = it.file;
-                    loadFsDirList();
+                    enterFsDir(it.file);
                 }
             }
         });
@@ -683,6 +681,15 @@ public class MainActivity extends Activity {
                 if (!hasStorage()) { pendingAction = 2; ensureStorage(); return; }
                 dirPickMode = 1;
                 openDirPickerNow();
+            }
+        });
+        btnSaveDefaultDir.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { saveDefaultOutFromEdit(); }
+        });
+        edtDefaultOutDir.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            public boolean onEditorAction(TextView v, int actionId, android.view.KeyEvent e) {
+                saveDefaultOutFromEdit();
+                return true;
             }
         });
     }
@@ -858,15 +865,54 @@ public class MainActivity extends Activity {
     }
 
     private void refreshDefaultOutText() {
-        if (txtDefaultOutDir == null) return;
-        txtDefaultOutDir.setText(defaultOutDir().getAbsolutePath());
+        if (edtDefaultOutDir == null) return;
+        edtDefaultOutDir.setText(defaultOutDir().getAbsolutePath());
+    }
+
+    /** 直接编辑路径后保存（也支持在输入法里按“完成”） */
+    private void saveDefaultOutFromEdit() {
+        String p = edtDefaultOutDir.getText().toString().trim();
+        if (p.length() == 0) {
+            toast("请先填一个文件夹路径");
+            return;
+        }
+        File f = new File(p);
+        if (!f.isDirectory() && !f.mkdirs()) {
+            toast("这个路径不可用：" + p);
+            return;
+        }
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putString(KEY_DEFAULT_OUT, f.getAbsolutePath()).apply();
+        edtDefaultOutDir.setText(f.getAbsolutePath());
+        toast("默认导出文件夹已保存：" + f.getAbsolutePath());
     }
 
     /** 「↑ 上级」按钮：去上一层目录（两个浏览器共用） */
     private void goParent() {
         File up = (fsCur == null) ? null : fsCur.getParentFile();
         if (up == null) { toast("已经在最上层了"); return; }
-        fsCur = up;
+        if (!isDirReadable(up)) {
+            toast("上一级目录读不到（系统限制，如 /storage/emulated），已停在当前目录");
+            return;
+        }
+        enterFsDir(up);
+    }
+
+    /** 目录能不能读：listFiles()==null 表示没权限（/storage/emulated 就是这种） */
+    private boolean isDirReadable(File d) {
+        if (d == null || !d.isDirectory()) return false;
+        File[] fs = d.listFiles();
+        return fs != null;
+    }
+
+    /** 进入一个目录（先检查可读性，读不到就停在原地并提示，不显示空白列表） */
+    private void enterFsDir(File dir) {
+        if (dir == null) return;
+        if (!isDirReadable(dir)) {
+            toast("这个文件夹读不到（系统限制）：" + dir.getAbsolutePath());
+            return;
+        }
+        fsCur = dir;
         if (pageFsApk.getVisibility() == View.VISIBLE) loadFsApkList();
         else if (pageFsDir.getVisibility() == View.VISIBLE) loadFsDirList();
     }
@@ -877,9 +923,8 @@ public class MainActivity extends Activity {
         if (!f.exists()) { toast("路径不存在：" + path); return; }
         if (f.isFile()) f = f.getParentFile();
         if (f == null || !f.isDirectory()) { toast("这不是一个文件夹"); return; }
-        fsCur = f;
-        if (pageFsApk.getVisibility() == View.VISIBLE) loadFsApkList();
-        else if (pageFsDir.getVisibility() == View.VISIBLE) loadFsDirList();
+        if (!isDirReadable(f)) { toast("这个文件夹读不到（系统限制）：" + path); return; }
+        enterFsDir(f);
     }
 
     /**
@@ -941,12 +986,11 @@ public class MainActivity extends Activity {
             if (it.isDir) dirs++;
             else if (it.file.getName().toLowerCase().endsWith(".apk")) apks++;
         }
-        String info = fsCur.getAbsolutePath() + "\n" + dirs + " 个文件夹，" + realCount(items)
-                + " 项（其中 apk " + apks + " 个）";
+        // 底部信息条只占一行（singleLine + 中间省略），不再被长路径挤成好几行
+        String info = fsCur.getAbsolutePath() + " · " + dirs + " 个文件夹，" + realCount(items)
+                + " 项（apk " + apks + " 个）";
         if (realCount(items) == 0) {
-            info += "\n" + (lastDirUnreadable
-                    ? "（这个文件夹读不到内容 —— 可能没权限，返回上一级换一个）"
-                    : "（这个文件夹里没有东西）");
+            info += lastDirUnreadable ? " · 读不到内容（可能没权限）" : " · 文件夹是空的";
         }
         txtFsApkInfo.setText(info);
         paintFsTop(rowFsApkTop, btnFsApkBack, edtFsApkPath);
@@ -998,10 +1042,10 @@ public class MainActivity extends Activity {
         final List<FsItem> items = readDir(fsCur, true);
         edtFsDirPath.setText(fsCur.getAbsolutePath());
         listFsDir.setTag(items);
-        String dinfo = "将导出到：" + fsCur.getAbsolutePath() + "\n" + realCount(items) + " 个文件夹";
+        String dinfo = "将导出到：" + fsCur.getAbsolutePath() + " · " + realCount(items) + " 个文件夹";
         if (realCount(items) == 0) {
-            dinfo += lastDirUnreadable ? "（读不到内容，返回上一级换一个）"
-                                       : "（没有子文件夹，可以直接点右下角「选择此文件夹」）";
+            dinfo += lastDirUnreadable ? " · 读不到内容（返回上一级换一个）"
+                                       : " · 没有子文件夹，可直接点「选择此文件夹」";
         }
         txtFsDirInfo.setText(dinfo);
         paintFsTop(rowFsDirTop, btnFsDirBack, edtFsDirPath);

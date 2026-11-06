@@ -115,30 +115,41 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="8dp">
+            android:orientation="vertical"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end|center_vertical">
+
+                <Button
+                    android:id="@+id/btnFsApkUp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="↑ 上级" />
+
+                <Button
+                    android:id="@+id/btnFsApkCancel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="取消" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/txtFsApkInfo"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp"
+                android:layout_marginTop="2dp"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                android:textSize="11sp"
                 android:textColor="#8A8F99"
                 android:text="" />
-
-            <Button
-                android:id="@+id/btnFsApkUp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="↑ 上级" />
-
-            <Button
-                android:id="@+id/btnFsApkCancel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="取消" />
         </LinearLayout>
     </LinearLayout>
 
@@ -188,24 +199,35 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="8dp">
+            android:orientation="vertical"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end|center_vertical">
+
+                <Button
+                    android:id="@+id/btnGoExport"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:enabled="false"
+                    android:text="导出 .smf" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/txtSelInfo"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp"
+                android:layout_marginTop="2dp"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                android:textSize="11sp"
                 android:textColor="#4A90FF" />
-
-            <Button
-                android:id="@+id/btnGoExport"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:enabled="false"
-                android:text="导出 .smf" />
         </LinearLayout>
     </LinearLayout>
 
@@ -266,36 +288,47 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="8dp">
+            android:orientation="vertical"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end|center_vertical">
+
+                <Button
+                    android:id="@+id/btnFsDirUp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="↑ 上级" />
+
+                <Button
+                    android:id="@+id/btnFsDirCancel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="取消" />
+
+                <Button
+                    android:id="@+id/btnUseDir"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="选择此文件夹" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/txtFsDirInfo"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textSize="12sp"
+                android:layout_marginTop="2dp"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                android:textSize="11sp"
                 android:textColor="#8A8F99"
                 android:text="" />
-
-            <Button
-                android:id="@+id/btnFsDirUp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="↑ 上级" />
-
-            <Button
-                android:id="@+id/btnFsDirCancel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="取消" />
-
-            <Button
-                android:id="@+id/btnUseDir"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="选择此文件夹" />
         </LinearLayout>
     </LinearLayout>
 
@@ -454,14 +487,24 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/txtDefaultOutDir"
+        <EditText
+            android:id="@+id/edtDefaultOutDir"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            android:inputType="text"
+            android:imeOptions="actionDone"
+            android:maxLines="1"
             android:textSize="12sp"
             android:textColor="#8A8F99"
             android:text="" />
+
+        <Button
+            android:id="@+id/btnSaveDefaultDir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="保存路径" />
 
         <Button
             android:id="@+id/btnPickDefaultDir"
