@@ -132,6 +132,7 @@ public class MainActivity extends Activity {
     private TextView txtVersion;
     private EditText edtDefaultOutDir;
     private Button btnPickDefaultDir, btnSaveDefaultDir;
+    private TextView lblDefaultOut;
     private Switch swSameAsApk;
     private int dirPickMode = 0;        // 0 = 选导出输出目录，1 = 选"默认导出文件夹"
     // ---------------- 数据 ----------------
@@ -548,6 +549,7 @@ public class MainActivity extends Activity {
         btnPickDefaultDir = (Button) findViewById(R.id.btnPickDefaultDir);
         btnSaveDefaultDir = (Button) findViewById(R.id.btnSaveDefaultDir);
         swSameAsApk = (Switch) findViewById(R.id.swSameAsApk);
+        lblDefaultOut = (TextView) findViewById(R.id.lblDefaultOut);
     }
 
     private void wireEvents() {
@@ -937,7 +939,18 @@ public class MainActivity extends Activity {
         btnPickDefaultDir.setEnabled(!on);
         int color = on ? (dark ? 0xFF6E747E : 0xFFAAB0B8)
                        : (dark ? 0xFFE8EAEE : 0xFF1A1F28);
+        // 文字颜色 + 整体透明度都调一下，别只靠系统禁用色（有的主题下看不出来）
         edtDefaultOutDir.setTextColor(color);
+        btnSaveDefaultDir.setTextColor(color);
+        btnPickDefaultDir.setTextColor(color);
+        float alpha = on ? 0.55f : 1f;
+        edtDefaultOutDir.setAlpha(alpha);
+        btnSaveDefaultDir.setAlpha(alpha);
+        btnPickDefaultDir.setAlpha(alpha);
+        if (lblDefaultOut != null) {
+            lblDefaultOut.setTextColor(color);
+            lblDefaultOut.setAlpha(alpha);
+        }
         refreshDefaultOutText();
     }
 
