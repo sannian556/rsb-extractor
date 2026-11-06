@@ -446,6 +446,30 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="默认导出文件夹"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/txtDefaultOutDir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="12sp"
+            android:textColor="#8A8F99"
+            android:text="" />
+
+        <Button
+            android:id="@+id/btnPickDefaultDir"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="选择默认导出文件夹" />
+
         <Button
             android:id="@+id/btnGrant"
             android:layout_width="match_parent"

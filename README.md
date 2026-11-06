@@ -13,7 +13,7 @@
 ```
 RSB提取器本地仓库\
 ├─ 安卓版\
-│   ├─ RSB提取器.apk                  ← 成品（157 KB / 160,686 字节，v1.0.1，直接装手机）
+│   ├─ RSB提取器.apk                  ← 成品（161 KB / 164,782 字节，v1.0.2，直接装手机）
 │   ├─ RSB提取器-使用说明.txt
 │   ├─ 源码\                     ← 完整工程：java / res / AndroidManifest.xml / build.ps1 / tests
 │   └─ 截图\

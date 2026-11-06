@@ -12,7 +12,10 @@ import java.util.List;
  * 规则（按需求）：
  *   · 只导出 .smf 结尾的文件；其它类型记为失败并说明原因；
  *   · .smf 里如果是 RSB 容器外壳 → 解包成明文 rsb1 再写；本来就是明文的 → 原样导出；
- *   · 写文件走 Sink 接口 —— Android 端用 SAF 的 DocumentsContract 实现，PC 测试用 FileOutputStream。
+ *   · 写文件走 Sink 接口 —— Android 端用 FileOutputStream 实现，PC 测试也用文件。
+ *
+ * v1.0.2 起额外提供 {@link ByteProgress}：按"已处理字节"汇报进度，
+ * 这样进度条不再是"按文件数"（一个文件时一开始就 100%），而是真实字节进度。
  */
 public class Exporter {
 
@@ -27,28 +30,73 @@ public class Exporter {
         OutputStream create(String fileName) throws IOException;
     }
 
+    /** 文件级进度（第几个 / 共几个） */
     public interface Progress {
         void onFile(int index, int total, String name);
     }
 
+    /** 字节级进度：done/total 是"未压缩后"的字节数（RSB 容器按头部声明的解出大小算） */
+    public interface ByteProgress {
+        void onBytes(long done, long total, String name);
+    }
+
     public static Outcome export(ApkIndex apk, List<ApkEntry> picked, Sink sink, Progress cb) {
+        return export(apk, picked, sink, cb, null);
+    }
+
+    public static Outcome export(ApkIndex apk, List<ApkEntry> picked, Sink sink,
+                                 Progress cb, ByteProgress bp) {
         Outcome r = new Outcome();
+
+        // 先算总字节：RSB 容器用头部声明的"解出后大小"，明文用条目未压缩大小
+        long totalBytes = 0;
+        long[] sizes = new long[picked.size()];
+        for (int i = 0; i < picked.size(); i++) {
+            ApkEntry e = picked.get(i);
+            long sz = e.size;
+            try {
+                byte[] head = apk.peek(e, RsbUnpacker.HEADER_SIZE);
+                if (head != null && head.length >= RsbUnpacker.HEADER_SIZE && RsbUnpacker.isRsb(head)) {
+                    long u = RsbUnpacker.le64(head, 8);
+                    if (u > 0) sz = u;
+                }
+            } catch (Throwable ignored) { }
+            sizes[i] = sz;
+            totalBytes += sz;
+        }
+        if (bp != null) {
+            bp.onBytes(0, totalBytes, picked.isEmpty() ? null : picked.get(0).baseName());
+        }
+
+        long doneBase = 0;
         for (int i = 0; i < picked.size(); i++) {
             ApkEntry e = picked.get(i);
             if (cb != null) cb.onFile(i + 1, picked.size(), e.baseName());
-            String err = exportOne(apk, e, sink);
+            if (bp != null) bp.onBytes(doneBase, totalBytes, e.baseName());
+
+            String err = exportOne(apk, e, sink, bp, doneBase, totalBytes);
             if (err == null) {
                 r.success++;
             } else {
                 r.failed++;
                 r.details.add(e.baseName() + "：" + err);
             }
+
+            doneBase += sizes[i];
+            if (bp != null) bp.onBytes(Math.min(doneBase, totalBytes), totalBytes, e.baseName());
         }
+        if (bp != null) bp.onBytes(totalBytes, totalBytes, null);
         return r;
     }
 
     /** 成功返回 null，失败返回原因 */
     public static String exportOne(ApkIndex apk, ApkEntry e, Sink sink) {
+        return exportOne(apk, e, sink, null, 0, 0);
+    }
+
+    /** 成功返回 null，失败返回原因；带字节进度 */
+    public static String exportOne(ApkIndex apk, ApkEntry e, Sink sink,
+                                   final ByteProgress bp, final long doneBase, final long totalBytes) {
         OutputStream out = null;
         try {
             if (!e.isSmf()) return "不是 .smf 文件（本工具只导出 .smf）";
@@ -59,12 +107,16 @@ public class Exporter {
             if (RsbUnpacker.isRsb(head4)) {
                 InputStream in = apk.openEntry(e);
                 try {
-                    RsbUnpacker.unpack(in, out, null);
+                    RsbUnpacker.unpack(in, out, new RsbUnpacker.Progress() {
+                        public void onBlock(int index, int total, long bytesSoFar) {
+                            if (bp != null) bp.onBytes(doneBase + bytesSoFar, totalBytes, e.baseName());
+                        }
+                    });
                 } finally {
                     try { in.close(); } catch (IOException ignored) { }
                 }
             } else {
-                apk.copyEntry(e, out);
+                copyWithProgress(apk, e, out, bp, doneBase, totalBytes);
             }
             out.flush();
             return null;
@@ -75,6 +127,24 @@ public class Exporter {
             if (out != null) {
                 try { out.close(); } catch (IOException ignored) { }
             }
+        }
+    }
+
+    /** 明文条目：一边复制一边按 64KB 汇报字节进度 */
+    static void copyWithProgress(ApkIndex apk, ApkEntry e, OutputStream out,
+                                 ByteProgress bp, long doneBase, long totalBytes) throws IOException {
+        InputStream in = apk.openEntry(e);
+        try {
+            byte[] buf = new byte[1 << 16];
+            long copied = 0;
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                out.write(buf, 0, n);
+                copied += n;
+                if (bp != null) bp.onBytes(doneBase + copied, totalBytes, e.baseName());
+            }
+        } finally {
+            try { in.close(); } catch (IOException ignored) { }
         }
     }
 

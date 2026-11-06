@@ -89,6 +89,7 @@ public class MainActivity extends Activity {
     private static final String OFFICIAL_CERT_SHA256 =
             "F360C456D38C974059AA8A44D83FEE76F3FCBC5646E0F57917CD89DB2A4C7A51";
     private static final String KEY_SIG_WARNED = "sig_warned";
+    private static final String KEY_DEFAULT_OUT = "default_out_dir";   // 默认导出文件夹
     private static final int THEME_SYSTEM = 0, THEME_LIGHT = 1, THEME_DARK = 2;
     private int themeMode = THEME_SYSTEM;
     private boolean dark = false;
@@ -127,6 +128,9 @@ public class MainActivity extends Activity {
     private RadioButton rbThemeSystem, rbThemeLight, rbThemeDark;
     private Button btnGrant, btnSettingsBack;
     private TextView txtVersion;
+    private TextView txtDefaultOutDir;
+    private Button btnPickDefaultDir;
+    private int dirPickMode = 0;        // 0 = 选导出输出目录，1 = 选"默认导出文件夹"
 
     // ---------------- 数据 ----------------
     private final ApkIndex apk = new ApkIndex();
@@ -147,6 +151,7 @@ public class MainActivity extends Activity {
         ApkEntry entry;
         FsNode parent;
         FsNode link;                  // 非 null = 点它是"跳去某个目录"（就是列表第一行的「返回上级」）
+        boolean backToPicker;         // true = 列表里的「重新选择 APK」（回文件浏览器）
         final List<FsNode> children = new ArrayList<FsNode>();
     }
 
@@ -226,7 +231,7 @@ public class MainActivity extends Activity {
             android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
             return pi.versionName;
         } catch (Throwable t) {
-            return "1.0.1";
+            return "1.0.2";
         }
     }
 
@@ -315,7 +320,8 @@ public class MainActivity extends Activity {
 
         // 次按钮：卡片底 + 主题文字
         Button[] secondary = new Button[] { btnSettings, btnFsApkBack, btnFsApkUp, btnFsApkCancel,
-                btnFsDirBack, btnFsDirUp, btnFsDirCancel, btnGoExport, btnBack, btnSettingsBack, btnGrant };
+                btnFsDirBack, btnFsDirUp, btnFsDirCancel, btnGoExport, btnBack, btnSettingsBack, btnGrant,
+                btnPickDefaultDir };
         for (Button b : secondary) {
             b.setBackground(pressable(card, cardHit, 12f));
             b.setTextColor(text);
@@ -356,6 +362,7 @@ public class MainActivity extends Activity {
         rgTheme.setPadding((int) dp(8), (int) dp(4), (int) dp(8), (int) dp(4));
 
         txtCurPath.setTextColor(sub);
+        if (txtDefaultOutDir != null) txtDefaultOutDir.setTextColor(sub);
 
         // 进度条：圆角轨道 + 圆角进度条
         GradientDrawable track = roundRect(dark ? 0xFF232A34 : 0xFFE4EAF3, 6f);
@@ -508,6 +515,8 @@ public class MainActivity extends Activity {
         btnGrant = (Button) findViewById(R.id.btnGrant);
         btnSettingsBack = (Button) findViewById(R.id.btnSettingsBack);
         txtVersion = (TextView) findViewById(R.id.txtVersion);
+        txtDefaultOutDir = (TextView) findViewById(R.id.txtDefaultOutDir);
+        btnPickDefaultDir = (Button) findViewById(R.id.btnPickDefaultDir);
     }
 
     private void wireEvents() {
@@ -515,7 +524,10 @@ public class MainActivity extends Activity {
             public void onClick(View v) { openApkPicker(); }
         });
         btnSettings.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { showPage(pageSettings, true); }
+            public void onClick(View v) {
+                refreshDefaultOutText();
+                showPage(pageSettings, true);
+            }
         });
         btnSettingsBack.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { back(); }
@@ -565,10 +577,10 @@ public class MainActivity extends Activity {
 
         // ---- 选输出目录的文件浏览器 ----
         btnFsDirBack.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { back(); }
+            public void onClick(View v) { cancelDirPick(); }
         });
         btnFsDirCancel.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { back(); }
+            public void onClick(View v) { cancelDirPick(); }
         });
         btnFsDirUp.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { goParent(); }
@@ -594,6 +606,15 @@ public class MainActivity extends Activity {
         btnUseDir.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (fsCur == null) return;
+                if (dirPickMode == 1) {          // 在设置页里选「默认导出文件夹」
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                            .putString(KEY_DEFAULT_OUT, fsCur.getAbsolutePath()).apply();
+                    dirPickMode = 0;
+                    refreshDefaultOutText();
+                    toast("默认导出文件夹已设为：" + fsCur.getAbsolutePath());
+                    back();
+                    return;
+                }
                 outDir = fsCur;
                 txtOutDir.setText(outDir.getAbsolutePath());
                 back();
@@ -608,6 +629,10 @@ public class MainActivity extends Activity {
             public void onItemClick(AdapterView<?> p, View v, int pos, long id) {
                 if (pos < 0 || pos >= shown.size()) return;
                 FsNode n = shown.get(pos);
+                if (n.backToPicker) {                     // 根目录的「重新选择 APK」
+                    back();
+                    return;
+                }
                 if (n.link != null) {                    // 第一行的「↑ 返回上级」
                     cur = n.link;
                     refreshList();
@@ -652,6 +677,13 @@ public class MainActivity extends Activity {
         });
         btnGrant.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { ensureStorage(); updateGrantButton(); }
+        });
+        btnPickDefaultDir.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (!hasStorage()) { pendingAction = 2; ensureStorage(); return; }
+                dirPickMode = 1;
+                openDirPickerNow();
+            }
         });
     }
 
@@ -702,6 +734,7 @@ public class MainActivity extends Activity {
         root = null;
         cur = null;
         outDir = null;
+        dirPickMode = 0;
         pageStack.clear();
         edtApkPath.setText("");
         txtOutDir.setText("");
@@ -797,9 +830,36 @@ public class MainActivity extends Activity {
     }
 
     private void openDirPickerNow() {
-        fsCur = (outDir != null && outDir.isDirectory()) ? outDir : Environment.getExternalStorageDirectory();
+        if (dirPickMode == 1) {
+            fsCur = defaultOutDir();
+        } else {
+            fsCur = (outDir != null && outDir.isDirectory()) ? outDir : defaultOutDir();
+        }
         showPage(pageFsDir, true);
         loadFsDirList();
+    }
+
+    /** 取消"选目录"：如果是设置页里选默认目录，先把模式复位 */
+    private void cancelDirPick() {
+        if (dirPickMode == 1) dirPickMode = 0;
+        back();
+    }
+
+    /** 设置里保存的默认导出文件夹；没设过 / 失效时退回 Download */
+    private File defaultOutDir() {
+        String p = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_DEFAULT_OUT, null);
+        if (p != null && p.length() > 0) {
+            File f = new File(p);
+            if (f.isDirectory()) return f;
+            if (f.mkdirs()) return f;
+        }
+        File dl = new File(Environment.getExternalStorageDirectory(), "Download");
+        return dl.isDirectory() ? dl : Environment.getExternalStorageDirectory();
+    }
+
+    private void refreshDefaultOutText() {
+        if (txtDefaultOutDir == null) return;
+        txtDefaultOutDir.setText(defaultOutDir().getAbsolutePath());
     }
 
     /** 「↑ 上级」按钮：去上一层目录（两个浏览器共用） */
@@ -1011,8 +1071,11 @@ public class MainActivity extends Activity {
                         }
                         cur = root;
                         picked.clear();
+                        // 记住是"从文件浏览器点进来的"还是"从主界面地址栏导入的"：
+                        // 前者返回时应回到文件浏览器（不丢当前目录），后者回主界面。
+                        boolean fromPicker = (pageFsApk.getVisibility() == View.VISIBLE);
                         pageStack.clear();
-                        pageStack.add(pageImport);
+                        pageStack.add(fromPicker ? pageFsApk : pageImport);
                         showPage(pageBrowse, true);
                         refreshList();
                         updateSelInfo();
@@ -1087,6 +1150,14 @@ public class MainActivity extends Activity {
             u.isDir = true;
             u.link = cur.parent;
             shown.add(u);
+        } else {
+            // 包根目录：给一个明确的「重新选择 APK」入口（点错包时不用瞎按返回键）
+            FsNode back = new FsNode();
+            back.name = "重新选择 APK";
+            back.full = "";
+            back.isDir = true;
+            back.backToPicker = true;
+            shown.add(back);
         }
         shown.addAll(cur.children);
 
@@ -1106,6 +1177,14 @@ public class MainActivity extends Activity {
                 TextView t1 = (TextView) v.findViewById(android.R.id.text1);
                 TextView t2 = (TextView) v.findViewById(android.R.id.text2);
                 FsNode n = shown.get(position);
+                if (n.backToPicker) {
+                    t1.setText("↑  重新选择 APK");
+                    t1.setTextColor(cUp);
+                    t2.setText("回到文件浏览器，换一个包");
+                    t2.setTextColor(cUp);
+                    styleRow(v, cUpBg, dark ? 0x33FFFFFF : 0x1A000000, position, convertView == null);
+                    return v;
+                }
                 if (n.link != null) {
                     String up = n.link.full.length() == 0 ? apkDisplayName : n.link.name;
                     t1.setText("↑  返回上级：" + up);
@@ -1163,8 +1242,7 @@ public class MainActivity extends Activity {
         if (smf == 0) { toast("先选几个 .smf 文件"); return; }
         txtExportHead.setText("准备导出 " + smf + " 个 .smf 文件");
         if (outDir == null) {
-            File dl = new File(Environment.getExternalStorageDirectory(), "Download");
-            outDir = dl.isDirectory() ? dl : Environment.getExternalStorageDirectory();
+            outDir = defaultOutDir();
             txtOutDir.setText(outDir.getAbsolutePath() + "（默认，可改）");
         }
         progressBar.setProgress(0);
@@ -1183,28 +1261,55 @@ public class MainActivity extends Activity {
         btnDoExport.setEnabled(false);
         btnPickDir.setEnabled(false);
         btnBack.setEnabled(false);
-        progressBar.setMax(list.size());
+        progressBar.setMax(1000);
         progressBar.setProgress(0);
+        txtExportStatus.setText("准备导出…");
 
         final Exporter.Sink sink = new FileSink(outDir);
         new Thread(new Runnable() {
             public void run() {
-                final Exporter.Outcome o = Exporter.export(apk, list, sink, new Exporter.Progress() {
-                    public void onFile(final int idx, final int total, final String name) {
-                        ui.post(new Runnable() {
-                            public void run() {
-                                progressBar.setProgress(idx);
-                                txtExportStatus.setText("正在导出… " + idx + " / " + total + "\n" + name);
+                // 字节进度按 0~1000 映射；同一百分比 120ms 内不重复刷 UI（大文件也不是狂刷）
+                final long[] lastPct = { -1 };
+                final long[] lastMs = { 0 };
+                final Exporter.Outcome o = Exporter.export(apk, list, sink,
+                        new Exporter.Progress() {
+                            public void onFile(final int idx, final int total, final String name) {
+                                ui.post(new Runnable() {
+                                    public void run() {
+                                        txtExportHead.setText("正在导出 " + idx + " / " + total + " 个 .smf");
+                                    }
+                                });
+                            }
+                        },
+                        new Exporter.ByteProgress() {
+                            public void onBytes(final long done, final long total, final String name) {
+                                final int pct = (total <= 0) ? 0 : (int) Math.min(1000, done * 1000 / total);
+                                long now = System.currentTimeMillis();
+                                if (pct == lastPct[0] && now - lastMs[0] < 120 && done < total) return;
+                                lastPct[0] = pct;
+                                lastMs[0] = now;
+                                ui.post(new Runnable() {
+                                    public void run() {
+                                        progressBar.setProgress(pct);
+                                        String who = (name == null || name.length() == 0)
+                                                ? "正在收尾…" : ("正在导出：" + name);
+                                        txtExportStatus.setText(who + "\n"
+                                                + ApkIndex.formatSize(done) + " / " + ApkIndex.formatSize(total)
+                                                + "（" + (pct / 10) + "." + (pct % 10) + "%）");
+                                        if (pct % 10 == 0) {   // 每 1% 记一条，别把 logcat 刷爆
+                                            android.util.Log.d("RSB-Export", (pct / 10) + "." + (pct % 10)
+                                                    + "%  " + done + "/" + total + "  " + who);
+                                        }
+                                    }
+                                });
                             }
                         });
-                    }
-                });
                 ui.post(new Runnable() {
                     public void run() {
                         btnDoExport.setEnabled(true);
                         btnPickDir.setEnabled(true);
                         btnBack.setEnabled(true);
-                        progressBar.setProgress(list.size());
+                        progressBar.setProgress(1000);
                         txtExportStatus.setText("完成：" + o.success + " 个成功，" + o.failed + " 个失败\n"
                                 + "输出目录：" + outDir.getAbsolutePath());
                         showResult(o);
