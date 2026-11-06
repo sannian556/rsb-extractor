@@ -479,6 +479,15 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
+        <Switch
+            android:id="@+id/swSameAsApk"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="导出位置和安装包位置一样"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

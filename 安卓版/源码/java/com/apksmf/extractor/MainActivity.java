@@ -45,6 +45,7 @@ import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -90,6 +91,7 @@ public class MainActivity extends Activity {
             "F360C456D38C974059AA8A44D83FEE76F3FCBC5646E0F57917CD89DB2A4C7A51";
     private static final String KEY_SIG_WARNED = "sig_warned";
     private static final String KEY_DEFAULT_OUT = "default_out_dir";   // 默认导出文件夹
+    private static final String KEY_OUT_SAME_AS_APK = "out_same_as_apk"; // 导出位置 = 安装包位置（默认开）
     private static final int THEME_SYSTEM = 0, THEME_LIGHT = 1, THEME_DARK = 2;
     private int themeMode = THEME_SYSTEM;
     private boolean dark = false;
@@ -130,10 +132,12 @@ public class MainActivity extends Activity {
     private TextView txtVersion;
     private EditText edtDefaultOutDir;
     private Button btnPickDefaultDir, btnSaveDefaultDir;
+    private Switch swSameAsApk;
     private int dirPickMode = 0;        // 0 = 选导出输出目录，1 = 选"默认导出文件夹"
     // ---------------- 数据 ----------------
     private final ApkIndex apk = new ApkIndex();
     private String apkDisplayName = "";
+    private String apkPath;              // 当前打开的 APK 的完整路径（"与安装包同位置"要用）
     private FsNode root, cur;
     private final List<FsNode> shown = new ArrayList<FsNode>();
     private final Set<FsNode> picked = new HashSet<FsNode>();
@@ -194,6 +198,9 @@ public class MainActivity extends Activity {
         rbThemeLight.setChecked(themeMode == THEME_LIGHT);
         rbThemeDark.setChecked(themeMode == THEME_DARK);
         txtVersion.setText("版本 " + versionText());
+        // 开关默认打开（首次安装读不到这个键时返回 true），并把 UI 状态与保存值对齐
+        swSameAsApk.setChecked(isSameAsApk());
+        applySameAsApkState(swSameAsApk.isChecked());
 
         showPage(pageImport, false);
     }
@@ -384,6 +391,7 @@ public class MainActivity extends Activity {
 
         txtCurPath.setTextColor(sub);
         if (edtDefaultOutDir != null) edtDefaultOutDir.setTextColor(text);
+        if (swSameAsApk != null) swSameAsApk.setTextColor(text);
 
         // 进度条：圆角轨道 + 圆角进度条
         GradientDrawable track = roundRect(dark ? 0xFF232A34 : 0xFFE4EAF3, 6f);
@@ -539,6 +547,7 @@ public class MainActivity extends Activity {
         edtDefaultOutDir = (EditText) findViewById(R.id.edtDefaultOutDir);
         btnPickDefaultDir = (Button) findViewById(R.id.btnPickDefaultDir);
         btnSaveDefaultDir = (Button) findViewById(R.id.btnSaveDefaultDir);
+        swSameAsApk = (Switch) findViewById(R.id.swSameAsApk);
     }
 
     private void wireEvents() {
@@ -714,6 +723,13 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        swSameAsApk.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(android.widget.CompoundButton b, boolean on) {
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                        .putBoolean(KEY_OUT_SAME_AS_APK, on).apply();
+                applySameAsApkState(on);
+            }
+        });
     }
 
     @Override
@@ -874,8 +890,12 @@ public class MainActivity extends Activity {
         back();
     }
 
-    /** 设置里保存的默认导出文件夹；没设过 / 失效时退回 Download */
+    /** 实际默认导出目录：开关打开且已打开 APK → 用 APK 所在目录；否则用保存的默认目录 */
     private File defaultOutDir() {
+        if (isSameAsApk()) {
+            File d = apkDir();
+            if (d != null) return d;
+        }
         String p = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_DEFAULT_OUT, null);
         if (p != null && p.length() > 0) {
             File f = new File(p);
@@ -888,7 +908,37 @@ public class MainActivity extends Activity {
 
     private void refreshDefaultOutText() {
         if (edtDefaultOutDir == null) return;
-        edtDefaultOutDir.setText(defaultOutDir().getAbsolutePath());
+        if (isSameAsApk()) {
+            File d = apkDir();
+            edtDefaultOutDir.setText(d != null ? d.getAbsolutePath()
+                    : "（与安装包同位置：选好 APK 后自动用它所在的文件夹）");
+        } else {
+            edtDefaultOutDir.setText(defaultOutDir().getAbsolutePath());
+        }
+    }
+
+    /** 「导出位置和安装包位置一样」开关状态（默认开） */
+    private boolean isSameAsApk() {
+        return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(KEY_OUT_SAME_AS_APK, true);
+    }
+
+    /** 当前 APK 所在目录；没打开 APK 时返回 null */
+    private File apkDir() {
+        if (apkPath == null) return null;
+        File f = new File(apkPath).getParentFile();
+        return (f != null && f.isDirectory()) ? f : null;
+    }
+
+    /** 开关打开：路径框 / 保存 / 选择默认目录 全部禁用并变灰；关闭：恢复可编辑 */
+    private void applySameAsApkState(boolean on) {
+        if (edtDefaultOutDir == null) return;
+        edtDefaultOutDir.setEnabled(!on);
+        btnSaveDefaultDir.setEnabled(!on);
+        btnPickDefaultDir.setEnabled(!on);
+        int color = on ? (dark ? 0xFF6E747E : 0xFFAAB0B8)
+                       : (dark ? 0xFFE8EAEE : 0xFF1A1F28);
+        edtDefaultOutDir.setTextColor(color);
+        refreshDefaultOutText();
     }
 
     /** 直接编辑路径后保存（也支持在输入法里按“完成”） */
@@ -1122,6 +1172,7 @@ public class MainActivity extends Activity {
                     FileChannel ch = fis.getChannel();      // ApkIndex 会一直持着它读数据，不能关
                     apk.open(ch, new File(path).length());
                     apkDisplayName = new File(path).getName();
+                    apkPath = path;
                     buildTree();
                 } catch (final Throwable ex) {
                     err = (ex.getMessage() == null) ? ex.getClass().getSimpleName() : ex.getMessage();
@@ -1309,7 +1360,9 @@ public class MainActivity extends Activity {
         txtExportHead.setText("准备导出 " + smf + " 个 .smf 文件");
         if (outDir == null) {
             outDir = defaultOutDir();
-            txtOutDir.setText(outDir.getAbsolutePath() + "（默认，可改）");
+            String suffix = (isSameAsApk() && apkDir() != null)
+                    ? "（与安装包同位置，可改）" : "（默认，可改）";
+            txtOutDir.setText(outDir.getAbsolutePath() + suffix);
         }
         progressBar.setProgress(0);
         txtExportStatus.setText("");
@@ -1408,6 +1461,7 @@ public class MainActivity extends Activity {
     // ============================================================ 杂项
     private void closeApk() {
         apk.close();
+        apkPath = null;
     }
 
     private void toast(String s) {
