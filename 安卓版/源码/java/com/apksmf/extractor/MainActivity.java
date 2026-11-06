@@ -199,24 +199,46 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Android 15（API 35）起，targetSdk 35 的应用被强制"边到边"显示：内容会一直画到状态栏底下，
-     * 框架自带的 ActionBar 还会压在内容上面 —— 用户手机上顶部那一条（← + 地址栏）整条看不见，
-     * 就是这么来的。现在 ActionBar 已经去掉（主题改成 NoActionBar），这里再按 window insets
-     * 自己留出状态栏/导航栏的占位。**API 35 以下系统本来就会让开，这里什么都不做。**
+     * 处理"边到边"与圆角/手势条的安全区。
+     *
+     * Android 15（API 35）起，targetSdk 35 的应用被强制边到边：内容会画到状态栏/导航栏底下。
+     * 手机若是圆角屏或手势导航，底部那条「路径 + 统计」会被手势条或圆角切掉一截 ——
+     * 所以这里按 window insets 给根布局留出**上下安全区**：
+     *   · 顶部取 statusBars 与 displayCutout 的较大值；
+     *   · 底部取 navigationBars、systemGestures、displayCutout 的较大值
+     *     （手势条在 systemGestures 里，圆角在 displayCutout 的 safe inset 里）。
+     * API 30+ 用新的 Type 接口；API 24~29 退回旧接口。
+     * 低版本非边到边时这些值通常是 0，相当于不加，不会重复留白。
      */
     private void applySystemBarInsets() {
-        if (Build.VERSION.SDK_INT < 35) return;
         final View root = findViewById(R.id.rootLayout);
         if (root == null) return;
-        final int sb = statusBarHeightPx();
-        root.setPadding(0, sb, 0, 0);          // 先垫上状态栏高度，保证顶栏一定露出来
+        // 先垫一个状态栏高度兜底，首帧 insets 还没到时顶栏也不会被盖住
+        if (Build.VERSION.SDK_INT >= 35) root.setPadding(0, statusBarHeightPx(), 0, 0);
+
         root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
             public WindowInsets onApplyWindowInsets(View v, WindowInsets ins) {
-                int top = ins.getSystemWindowInsetTop();
-                v.setPadding(0, top > 0 ? top : sb, 0, ins.getSystemWindowInsetBottom());
+                int top;
+                int bottom;
+                if (Build.VERSION.SDK_INT >= 30) {
+                    android.graphics.Insets bars = ins.getInsets(
+                            WindowInsets.Type.statusBars() | WindowInsets.Type.displayCutout());
+                    android.graphics.Insets safe = ins.getInsets(
+                            WindowInsets.Type.navigationBars()
+                                    | WindowInsets.Type.systemGestures()
+                                    | WindowInsets.Type.displayCutout());
+                    top = bars.top;
+                    bottom = safe.bottom;
+                } else {
+                    top = ins.getSystemWindowInsetTop();
+                    bottom = ins.getSystemWindowInsetBottom();
+                }
+                if (Build.VERSION.SDK_INT >= 35 && top <= 0) top = statusBarHeightPx();
+                v.setPadding(0, top, 0, bottom);
                 return ins;
             }
         });
+        root.requestApplyInsets();
     }
 
     private int statusBarHeightPx() {
