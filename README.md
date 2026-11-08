@@ -29,7 +29,7 @@ RSB提取器本地仓库\
 
 [Releases](https://github.com/sannian556/rsb-extractor/releases) 里有：
 `RSB提取器.apk`（安卓）、`RSB提取器.exe` + `.exe.config`（XP~Win11）、
-`RSB提取器(单文件免配置版).exe`（需 .NET 4.0+）、`RSB-Extractor-1.0.2.zip`（全打包，解压即用）。
+`RSB提取器(单文件免配置版).exe`（需 .NET 4.0+）、`RSB-Extractor-1.0.2.zip`（四个文件全打包，解压即用）。
 
 ## 怎么用
 
