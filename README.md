@@ -4,8 +4,7 @@
 > 做两件事：① 像文件管理器一样翻手机/电脑里的 APK；② 把包里的 `.smf` 取出来，
 > 如果它是 `RSB 容器` 外壳就自动解开，还原成工具箱和游戏都能直接认的 `rsb1` 文件。
 >
-> 本仓库已开源（MIT）：安卓和 Windows 两个平台的源码、构建脚本、成品都在这里，
-> 成品也可以在 [Releases](https://github.com/sannian556/rsb-extractor/releases) 直接下载。
+> MIT 开源。源码、构建脚本、成品都在这个仓库；成品也可以从 [Releases](https://github.com/sannian556/rsb-extractor/releases) 下载。
 
 ---
 
@@ -28,14 +27,9 @@ RSB提取器本地仓库\
 
 ## 下载
 
-成品在 **[Releases](https://github.com/sannian556/rsb-extractor/releases)**：
-
-| 文件 | 说明 |
-|---|---|
-| `RSB提取器.apk` | 安卓版，v1.0.2（Android 9 实测） |
-| `RSB提取器.exe` + `RSB提取器.exe.config` | Windows 版，v1.0.2，XP ~ Win11（两个文件放一起） |
-| `RSB提取器(单文件免配置版).exe` | 单文件版，需要 .NET Framework 4.0+ |
-| `RSB-Extractor-1.0.2.zip` | 上面全部 + 使用说明，解压即用 |
+[Releases](https://github.com/sannian556/rsb-extractor/releases) 里有：
+`RSB提取器.apk`（安卓）、`RSB提取器.exe` + `.exe.config`（XP~Win11）、
+`RSB提取器(单文件免配置版).exe`（需 .NET 4.0+）、`RSB-Extractor-1.0.2.zip`（全打包，解压即用）。
 
 ## 怎么用
 
@@ -136,6 +130,4 @@ Windows 端的 WinForms 界面（资源管理器样式、系统图标、面包�
 
 ## 开源协议
 
-[MIT](LICENSE)——随便用、随便改、可商用，保留版权声明即可。
-
-第三方代码：7-Zip LZMA SDK（public domain），见上文「用了第三方开源代码的地方」。
+[MIT](LICENSE)。第三方只有 7-Zip LZMA SDK（public domain）。
