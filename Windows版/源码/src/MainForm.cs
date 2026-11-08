@@ -52,6 +52,16 @@ namespace ApkSmfExtractor
         private Button _btnPickDir;
         private Button _btnDoExport;
         private Label _lblStatus;
+        private ProgressBar _bar;
+        private string _exportDir;
+        private CheckBox _chkSameAsApk;
+        private Label _lblDefaultOut;
+        private TextBox _txtDefaultOut;
+        private Button _btnPickDefaultOut;
+        private Label _lblSetSec3;
+        private bool _sameAsApk = true;
+        private long _lastPct = -1;
+        private long _lastMs;
         private ToolStripDropDownButton _btnTheme;
         private ToolStripMenuItem _miThemeAuto, _miThemeLight, _miThemeDark;
         private Panel _pSettings;
@@ -85,6 +95,7 @@ namespace ApkSmfExtractor
             // 主题：先读设置 + 探测系统（决定「跟随系统」能不能用），界面建好后再统一刷一遍
             Theme.Load();
             Theme.Refresh();
+            _sameAsApk = Theme.GetSetting("same_as_apk", "1") != "0";   // 默认打开
             BackColor = Theme.Bg;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); }
             catch { }
@@ -472,6 +483,15 @@ namespace ApkSmfExtractor
             _lblStatus.ForeColor = Theme.SubText;
             _pExport.Controls.Add(_lblStatus);
 
+            // 真实字节进度条：0~1000 对应 0.0%~100.0%
+            _bar = new ProgressBar();
+            _bar.Location = new Point(S(36), y + S(76));
+            _bar.Size = new Size(S(694), S(18));
+            _bar.Minimum = 0;
+            _bar.Maximum = 1000;
+            _bar.Value = 0;
+            _pExport.Controls.Add(_bar);
+
             Controls.Add(_pExport);
         }
 
@@ -516,6 +536,8 @@ namespace ApkSmfExtractor
             _curDir = null;
             _txtOut.Text = "";
             _lblStatus.Text = "";
+            _exportDir = null;
+            if (_bar != null) _bar.Value = 0;
             _lblSelInfo.Text = "";
             if (_lblCount != null) _lblCount.Text = "";
             _btnGoExport.Enabled = false;
@@ -823,10 +845,17 @@ namespace ApkSmfExtractor
             if (_picked.Count == 0) return;
             if (_txtOut.Text.Trim().Length == 0)
             {
-                try { _txtOut.Text = Path.GetDirectoryName(_apk.Path); }
-                catch { }
+                string dir = null;
+                if (_sameAsApk)
+                {
+                    try { dir = Path.GetDirectoryName(_apk.Path); } catch { }
+                }
+                if (string.IsNullOrEmpty(dir)) dir = Theme.GetSetting("default_out", "");
+                if (string.IsNullOrEmpty(dir)) dir = Theme.GetSetting("last_out", "");
+                if (!string.IsNullOrEmpty(dir)) _txtOut.Text = dir;
             }
             _lblStatus.Text = "";
+            if (_bar != null) _bar.Value = 0;
             ShowExport();
             _txtOut.Focus();
             _txtOut.SelectAll();
@@ -871,10 +900,16 @@ namespace ApkSmfExtractor
 
             _btnDoExport.Enabled = false;
             _btnPickDir.Enabled = false;
+            if (_bar != null) { _bar.Maximum = 1000; _bar.Value = 0; }
             _lblStatus.Text = "正在导出，请稍候…";
             Application.DoEvents();
 
             string outDir = dir;
+            _exportDir = outDir;
+            Theme.SetSetting("last_out", outDir);       // 下次导出页默认填这个
+            _lastPct = -1;
+            _lastMs = 0;
+
             Thread t = new Thread(new ThreadStart(delegate
             {
                 List<ApkEntry> list = new List<ApkEntry>(_picked);
@@ -883,7 +918,24 @@ namespace ApkSmfExtractor
                     {
                         BeginInvoke(new MethodInvoker(delegate
                         {
-                            _lblStatus.Text = "正在导出… " + idx + " / " + total + "　" + name;
+                            if (_lblStatus != null)
+                                _lblStatus.Text = "正在导出 " + idx + " / " + total + " 个 .smf";
+                        }));
+                    },
+                    delegate(long done, long total, string name)
+                    {
+                        long pct = total <= 0 ? 0 : Math.Min(1000, done * 1000 / total);
+                        long now = Environment.TickCount;
+                        if (pct == _lastPct && now - _lastMs < 120 && done < total) return;
+                        _lastPct = pct;
+                        _lastMs = now;
+                        BeginInvoke(new MethodInvoker(delegate
+                        {
+                            if (_bar != null) _bar.Value = (int)pct;
+                            string who = string.IsNullOrEmpty(name) ? "正在收尾…" : ("正在导出：" + name);
+                            if (_lblStatus != null)
+                                _lblStatus.Text = who + "　" + FormatSize(done) + " / " + FormatSize(total)
+                                                + "（" + (pct / 10) + "." + (pct % 10) + "%）";
                         }));
                     });
 
@@ -891,9 +943,11 @@ namespace ApkSmfExtractor
                 {
                     _btnDoExport.Enabled = true;
                     _btnPickDir.Enabled = true;
+                    if (_bar != null) _bar.Value = 1000;
                     _lblStatus.Text = "";
 
                     string msg = "导出完成\n\n成功 " + outcome.Success + " 个，失败 " + outcome.Failed + " 个";
+                    msg += "\n\n输出到：\n" + outDir;
                     if (outcome.Failed > 0)
                     {
                         StringBuilder sb = new StringBuilder();
@@ -948,12 +1002,44 @@ namespace ApkSmfExtractor
             _lblThemeHint.Size = new Size(S(620), S(44));
             _pSettings.Controls.Add(_lblThemeHint);
 
-            _lblSetSec2 = SectionLabel("关于", S(268));
+            _lblSetSec3 = SectionLabel("导出", S(250));
+            _pSettings.Controls.Add(_lblSetSec3);
+
+            _chkSameAsApk = new CheckBox();
+            _chkSameAsApk.Text = "导出位置和安装包位置一样";
+            _chkSameAsApk.AutoSize = true;
+            _chkSameAsApk.Location = new Point(S(36), S(278));
+            _chkSameAsApk.Checked = _sameAsApk;
+            _chkSameAsApk.CheckedChanged += delegate { OnSameAsApkChanged(); };
+            _pSettings.Controls.Add(_chkSameAsApk);
+
+            _lblDefaultOut = new Label();
+            _lblDefaultOut.Text = "默认导出文件夹";
+            _lblDefaultOut.AutoSize = true;
+            _lblDefaultOut.Location = new Point(S(36), S(310));
+            _pSettings.Controls.Add(_lblDefaultOut);
+
+            _txtDefaultOut = new TextBox();
+            _txtDefaultOut.Location = new Point(S(36), S(332));
+            _txtDefaultOut.Width = S(520);
+            _txtDefaultOut.Text = Theme.GetSetting("default_out", "");
+            _txtDefaultOut.Leave += delegate { SaveDefaultOut(); };
+            _pSettings.Controls.Add(_txtDefaultOut);
+
+            _btnPickDefaultOut = new Button();
+            _btnPickDefaultOut.Text = "选择默认导出文件夹";
+            _btnPickDefaultOut.Size = new Size(S(160), S(26));
+            _btnPickDefaultOut.Location = new Point(S(566), S(330));
+            _btnPickDefaultOut.FlatStyle = FlatStyle.System;
+            _btnPickDefaultOut.Click += delegate { PickDefaultOut(); };
+            _pSettings.Controls.Add(_btnPickDefaultOut);
+
+            _lblSetSec2 = SectionLabel("关于", S(404));
             _pSettings.Controls.Add(_lblSetSec2);
 
             _lblAbout = new Label();
             _lblAbout.AutoSize = false;
-            _lblAbout.Location = new Point(S(56), S(298));
+            _lblAbout.Location = new Point(S(56), S(432));
             _lblAbout.Size = new Size(S(620), S(76));
             _pSettings.Controls.Add(_lblAbout);
 
@@ -965,6 +1051,46 @@ namespace ApkSmfExtractor
 
             _pSettings.Resize += delegate { LayoutSettingsPanel(); };
             Controls.Add(_pSettings);
+        }
+
+        private void OnSameAsApkChanged()
+        {
+            _sameAsApk = _chkSameAsApk.Checked;
+            Theme.SetSetting("same_as_apk", _sameAsApk ? "1" : "0");
+            ApplySameAsApkState();
+        }
+
+        /// <summary>开关打开：默认导出路径的控件全部禁用并变灰；关闭：恢复</summary>
+        private void ApplySameAsApkState()
+        {
+            bool on = _sameAsApk;
+            if (_txtDefaultOut != null) _txtDefaultOut.Enabled = !on;
+            if (_btnPickDefaultOut != null) _btnPickDefaultOut.Enabled = !on;
+            if (_lblDefaultOut != null)
+                _lblDefaultOut.ForeColor = on ? Theme.SubText : Theme.Text;
+        }
+
+        private void SaveDefaultOut()
+        {
+            if (_txtDefaultOut == null) return;
+            string p = _txtDefaultOut.Text.Trim();
+            if (p.Length > 0 && !Directory.Exists(p))
+            {
+                try { Directory.CreateDirectory(p); }
+                catch { }
+            }
+            Theme.SetSetting("default_out", p);
+        }
+
+        private void PickDefaultOut()
+        {
+            if (_txtDefaultOut == null) return;
+            string r = FolderPicker.Pick(Handle, _txtDefaultOut.Text.Trim());
+            if (r != null)
+            {
+                _txtDefaultOut.Text = r;
+                SaveDefaultOut();
+            }
         }
 
         private Label SectionLabel(string text, int y)
@@ -1008,14 +1134,21 @@ namespace ApkSmfExtractor
             if (_lblAbout != null)
             {
                 string ver = "?";
-                try { ver = Application.ProductVersion; } catch { }
-                // 程序集版本是 1.0.0.0 这种四段式，界面上只留前两段（1.0），跟安卓版显示的一致
-                string[] seg = ver.Split('.');
-                if (seg.Length > 2) ver = seg[0] + "." + seg[1];
+                try
+                {
+                    ver = Application.ProductVersion;
+                    // 有 InformationalVersion 时 ProductVersion 会带一段说明，只取前面的版本号
+                    int sp = ver.IndexOf(' ');
+                    if (sp > 0) ver = ver.Substring(0, sp);
+                    // 1.0.2.0 → 1.0.2；1.0.0.0 → 1.0
+                    while (ver.EndsWith(".0")) ver = ver.Substring(0, ver.Length - 2);
+                }
+                catch { }
                 _lblAbout.Text = "RSB 提取器　版本 " + ver
                     + "\r\n外观设置存在：" + Theme.SettingsPath
                     + "\r\n（删掉那个文件就恢复默认：跟随系统）";
             }
+            ApplySameAsApkState();
         }
 
         private void ShowSettings()
@@ -1039,10 +1172,12 @@ namespace ApkSmfExtractor
             if (_pExport != null) _pExport.BackColor = Theme.Bg;
 
             // 深色下系统原生按钮是白的，改成自绘扁平；浅色下保持系统原生
-            Button[] btns = new Button[] { _btnImport, _btnGoExport, _btnPickDir, _btnDoExport };
-            for (int i = 0; i < btns.Length; i++) Theme.StyleButton(btns[i]);
+            Button[] btns = new Button[] { _btnImport, _btnGoExport, _btnPickDir, _btnDoExport, _btnPickDefaultOut };
+            for (int i = 0; i < btns.Length; i++) { if (btns[i] != null) Theme.StyleButton(btns[i]); }
             Theme.StyleTextBox(_txtApkPath);
             Theme.StyleTextBox(_txtOut);
+            if (_txtDefaultOut != null) Theme.StyleTextBox(_txtDefaultOut);
+            if (_chkSameAsApk != null) _chkSameAsApk.ForeColor = Theme.Text;
 
             if (_lblCount != null) { _lblCount.BackColor = Color.Transparent; _lblCount.ForeColor = Theme.SubText; }
             if (_lblSelInfo != null) { _lblSelInfo.BackColor = Color.Transparent; _lblSelInfo.ForeColor = Theme.Link; }
@@ -1089,7 +1224,7 @@ namespace ApkSmfExtractor
             if (_pSettings != null)
             {
                 _pSettings.BackColor = Theme.Bg;
-                Label[] sl = new Label[] { _lblSetTitle, _lblSetSec1, _lblSetSec2 };
+                Label[] sl = new Label[] { _lblSetTitle, _lblSetSec1, _lblSetSec2, _lblSetSec3 };
                 for (int i = 0; i < sl.Length; i++)
                 {
                     if (sl[i] == null) continue;
@@ -1107,6 +1242,7 @@ namespace ApkSmfExtractor
                 Theme.StyleChoice(_rbThemeLight);
                 Theme.StyleChoice(_rbThemeDark);
                 Theme.StyleButton(_btnSettingsBack);
+                ApplySameAsApkState();
             }
             Theme.StyleButton(_btnSettings);
 

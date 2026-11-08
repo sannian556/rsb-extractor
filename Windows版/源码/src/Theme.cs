@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -186,24 +187,10 @@ namespace ApkSmfExtractor
             if (HasStartupOverride) return;
             try
             {
-                string p = SettingsPath;
-                if (p == null || !File.Exists(p)) return;
-                string[] lines = File.ReadAllLines(p);
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    string ln = lines[i].Trim();
-                    if (ln.Length == 0 || ln.StartsWith("#")) continue;
-                    int eq = ln.IndexOf('=');
-                    if (eq <= 0) continue;
-                    string key = ln.Substring(0, eq).Trim().ToLowerInvariant();
-                    string val = ln.Substring(eq + 1).Trim().ToLowerInvariant();
-                    if (key == "theme")
-                    {
-                        if (val == "light") Current = Mode.Light;
-                        else if (val == "dark") Current = Mode.Dark;
-                        else Current = Mode.Auto;
-                    }
-                }
+                string val = GetSetting("theme", "auto").ToLowerInvariant();
+                if (val == "light") Current = Mode.Light;
+                else if (val == "dark") Current = Mode.Dark;
+                else Current = Mode.Auto;
             }
             catch { }
         }
@@ -212,12 +199,68 @@ namespace ApkSmfExtractor
         {
             try
             {
+                string val = Current == Mode.Light ? "light" : (Current == Mode.Dark ? "dark" : "auto");
+                SetSetting("theme", val);
+            }
+            catch { }
+        }
+
+        /// <summary>读一个 key=value 设置（同一份 设置.txt；找不到返回 def）</summary>
+        public static string GetSetting(string key, string def)
+        {
+            try
+            {
+                string p = SettingsPath;
+                if (p == null || !File.Exists(p)) return def;
+                string[] lines = File.ReadAllLines(p);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string ln = lines[i].Trim();
+                    if (ln.Length == 0 || ln.StartsWith("#")) continue;
+                    int eq = ln.IndexOf('=');
+                    if (eq <= 0) continue;
+                    if (string.Equals(ln.Substring(0, eq).Trim(), key, StringComparison.OrdinalIgnoreCase))
+                        return ln.Substring(eq + 1).Trim();
+                }
+            }
+            catch { }
+            return def;
+        }
+
+        /// <summary>写一个 key=value 设置（保留文件里其它键，比如 theme）</summary>
+        public static void SetSetting(string key, string val)
+        {
+            try
+            {
                 string p = SettingsPath;
                 if (p == null) return;
                 string dir = Path.GetDirectoryName(p);
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                string val = Current == Mode.Light ? "light" : (Current == Mode.Dark ? "dark" : "auto");
-                File.WriteAllText(p, "# RSB 提取器设置\r\ntheme=" + val + "\r\n");
+
+                List<string> lines = new List<string>();
+                bool replaced = false;
+                if (File.Exists(p))
+                {
+                    string[] old = File.ReadAllLines(p);
+                    for (int i = 0; i < old.Length; i++)
+                    {
+                        string ln = old[i];
+                        int eq = ln.IndexOf('=');
+                        if (eq > 0 && string.Equals(ln.Substring(0, eq).Trim(), key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            lines.Add(key + "=" + val);
+                            replaced = true;
+                        }
+                        else
+                        {
+                            lines.Add(ln);
+                        }
+                    }
+                }
+                if (!replaced) lines.Add(key + "=" + val);
+                if (lines.Count == 0 || !lines[0].StartsWith("#"))
+                    lines.Insert(0, "# RSB 提取器设置");
+                File.WriteAllText(p, string.Join("\r\n", lines.ToArray()) + "\r\n");
             }
             catch { }
         }

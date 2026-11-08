@@ -46,6 +46,9 @@ namespace ApkSmfExtractor
         public const int HeaderSize = 32;
         public const int BlockRecSize = 36;
 
+        /// <summary>字节进度回调：bytesSoFar / 头部声明的解出总量</summary>
+        public delegate void UnpackProgress(long bytesSoFar, long total);
+
         public static bool IsRsbHead(byte[] head4)
         {
             return head4 != null && head4.Length >= 4
@@ -89,11 +92,17 @@ namespace ApkSmfExtractor
             return info;
         }
 
+        public static bool Unpack(Stream input, Stream output, out long written, out string error)
+        {
+            return Unpack(input, output, out written, out error, null);
+        }
+
         /// <summary>
         /// 把 RSB 容器流解成明文 rsb1 写到 output。
         /// 全程只做顺序读取，所以 APK 里那种不可 Seek 的流也能直接用。
         /// </summary>
-        public static bool Unpack(Stream input, Stream output, out long written, out string error)
+        public static bool Unpack(Stream input, Stream output, out long written, out string error,
+                                  UnpackProgress progress)
         {
             written = 0;
             error = null;
@@ -137,6 +146,7 @@ namespace ApkSmfExtractor
 
                     total += b.UncompressedSize;
                     written = total;
+                    if (progress != null) progress(total, info.UncompressedTotal);
                 }
 
                 if (total != info.UncompressedTotal)

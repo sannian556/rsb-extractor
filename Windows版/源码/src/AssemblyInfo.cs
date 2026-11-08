@@ -13,11 +13,11 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
 [assembly: Guid("8f3a1c62-5b47-4d19-9e28-7c6d0b2a4f51")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.2.0")]
+[assembly: AssemblyFileVersion("1.0.2.0")]
 // 作者水印：InformationalVersion 在「文件属性 → 详细信息」里能看到；
 // AuthorStamp 是自定义属性，只有 ildasm / strings 才看得到。
-[assembly: AssemblyInformationalVersion("1.0 + sannian556 | https://github.com/sannian556 | https://b23.tv/pm5cHXP")]
+[assembly: AssemblyInformationalVersion("1.0.2 + sannian556 | https://github.com/sannian556 | https://b23.tv/pm5cHXP")]
 [assembly: AuthorStamp("sannian556 | https://github.com/sannian556 | https://b23.tv/pm5cHXP")]
 
 /// <summary>作者水印（自定义程序集属性；ildasm / strings 可见，界面不显示）</summary>
